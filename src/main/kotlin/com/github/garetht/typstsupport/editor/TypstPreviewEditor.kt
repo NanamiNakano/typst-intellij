@@ -32,7 +32,8 @@ class TypstPreviewEditor(
   private val previewServerManager: PreviewServerManager = TinymistPreviewServerManager.getInstance(),
 ) : UserDataHolderBase(), FileEditor {
   private val browser = JBCefBrowser.createBuilder()
-    .setMouseWheelEventEnable(true)
+    .setOffScreenRendering(false)
+    .setMouseWheelEventEnable(false)
     .build()
   private val cards = JPanel(CardLayout())
   private val panel = JPanel(BorderLayout()).apply {

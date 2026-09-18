@@ -29,4 +29,9 @@
 
         <applicationService serviceImplementation="com.github.garetht.typstsupport.configuration.SettingsState"/>
     </extensions>
+
+    <applicationListeners>
+        <listener class="com.github.garetht.typstsupport.editor.InProcessJcefInitializer"
+                  topic="com.intellij.ide.AppLifecycleListener"/>
+    </applicationListeners>
 </idea-plugin>
