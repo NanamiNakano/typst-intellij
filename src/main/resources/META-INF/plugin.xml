@@ -20,7 +20,7 @@
 
         <fileType
                 name="Typst"
-                implementationClass="dev.thynanami.idea.typst.language.filetype.TypstFileType"
+                implementationClass="dev.thynanami.idea.typst.TypstFileType"
                 fieldName="INSTANCE"
                 language="Typst"
                 extensions="typ"/>

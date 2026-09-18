@@ -16,8 +16,6 @@ group = providers.gradleProperty("pluginGroup").get()
 version = providers.gradleProperty("pluginVersion").get()
 
 val tinymistVersion = providers.gradleProperty("tinymistVersion").get()
-val tinymistDownloadDirectory = "native"
-val bundledTinymistDirectory = "bin"
 
 kotlin { jvmToolchain(25) }
 
@@ -58,10 +56,10 @@ fun downloadTinymist(rustTarget: String): TaskProvider<Sync> {
         description = "Download tinymist (${rustTarget})"
         from(if (windows) zipTree(archive) else tarTree(resources.gzip(archive))) {
             include("**/tinymist", "**/tinymist.exe")
-            eachFile { relativePath = RelativePath(true, bundledTinymistDirectory, name) }
+            eachFile { relativePath = RelativePath(true, "bin", name) }
         }
         includeEmptyDirs = false
-        into(layout.projectDirectory.dir("$tinymistDownloadDirectory/$rustTarget"))
+        into(layout.projectDirectory.dir("native/$rustTarget"))
     }
 }
 
@@ -157,7 +155,7 @@ intellijPlatform {
 buildConfig {
     packageName("dev.thynanami.idea.typst")
     buildConfigField("TINYMIST_VERSION", tinymistVersion)
-    buildConfigField("TINYMIST_DIRECTORY", bundledTinymistDirectory)
+    buildConfigField("TINYMIST_DIRECTORY", "bin")
 }
 
 changelog {
