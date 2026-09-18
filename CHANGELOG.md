@@ -1,3 +1,7 @@
+## [Unreleased]
+
+- `tinymist` is now bundled in plugin
+
 ## [0.0.7]
 
 - Upgrade to `tinymist` `v0.15.8`.

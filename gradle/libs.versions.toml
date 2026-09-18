@@ -1,19 +1,13 @@
 [versions]
-# libraries
-appdirs = "1.5.0"
-commonsCompress = "1.28.0"
-
 # plugins
+buildConfig = "6.1.1"
 changelog = "2.5.0"
 intelliJPlatform = "2.19.0"
 kotlin = "2.4.20"
 qodana = "2026.2.1"
 
-[libraries]
-appdirs = { group = "net.harawata", name = "appdirs", version.ref = "appdirs" }
-commonsCompress = { group = 'org.apache.commons', name = 'commons-compress', version.ref = 'commonsCompress' }
-
 [plugins]
+buildConfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildConfig" }
 changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }
 intelliJPlatform = { id = "org.jetbrains.intellij.platform", version.ref = "intelliJPlatform" }
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

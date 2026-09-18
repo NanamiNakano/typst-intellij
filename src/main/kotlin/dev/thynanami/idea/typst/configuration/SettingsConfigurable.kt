@@ -41,7 +41,7 @@ class SettingsConfigurable(
 
   // UI Elements
   internal lateinit var fileField: Cell<TextFieldWithBrowseButton>
-  internal lateinit var automaticRadioButton: Cell<JBRadioButton>
+  internal lateinit var bundledRadioButton: Cell<JBRadioButton>
   internal lateinit var customRadioButton: Cell<JBRadioButton>
   internal lateinit var testResultLabel: Cell<JLabel>
   internal lateinit var testBinaryButton: Cell<JButton>
@@ -55,9 +55,9 @@ class SettingsConfigurable(
       group("Tinymist") {
         buttonsGroup("Binary filepath") {
           row {
-            automaticRadioButton = radioButton(
-              "Use automatically downloaded binary (${TinymistBinary.DOWNLOAD_VERSION})",
-              BinarySource.USE_AUTOMATIC_DOWNLOAD
+            bundledRadioButton = radioButton(
+              "Use bundled binary (${TinymistBinary.BUNDLED_VERSION})",
+              BinarySource.USE_BUNDLED_BINARY
             )
           }
 

@@ -15,7 +15,7 @@ import com.intellij.openapi.components.Storage
 class SettingsState : SimplePersistentStateComponent<SettingsState.State>(State()) {
 
   class State : BaseState() {
-    var binarySource by enum(BinarySource.USE_AUTOMATIC_DOWNLOAD)
+    var binarySource by enum(BinarySource.USE_BUNDLED_BINARY)
     var customBinaryPath by property("") { it.isEmpty() || it.isBlank() }
     var formatter by enum(TypstFormatter.TYPSTFMT)
   }
