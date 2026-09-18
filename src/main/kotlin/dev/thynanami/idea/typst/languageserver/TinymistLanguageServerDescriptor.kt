@@ -1,11 +1,7 @@
 package dev.thynanami.idea.typst.languageserver
 
-import dev.thynanami.idea.typst.configuration.PathValidator.Companion.isValidPath
-import dev.thynanami.idea.typst.configuration.SettingsState
-import dev.thynanami.idea.typst.languageserver.locations.isSupportedTypstFileType
 import com.google.gson.JsonObject
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.BaseProjectDirectories.Companion.getBaseDirectories
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -14,9 +10,10 @@ import com.intellij.platform.lsp.api.LspClientDescriptor
 import com.intellij.platform.lsp.api.LspServerNotificationsHandler
 import com.intellij.platform.lsp.api.customization.LspCustomization
 import com.intellij.platform.lsp.api.customization.LspFormattingSupport
+import dev.thynanami.idea.typst.configuration.PathValidator.Companion.isValidPath
+import dev.thynanami.idea.typst.configuration.SettingsState
+import dev.thynanami.idea.typst.languageserver.locations.isSupportedTypstFileType
 import java.nio.file.Path
-
-private val LOG = logger<TinymistLanguageServerDescriptor>()
 
 class TinymistLanguageServerDescriptor(val languageServerPath: Path, project: Project) :
   LspClientDescriptor(
@@ -54,7 +51,7 @@ class TinymistLanguageServerDescriptor(val languageServerPath: Path, project: Pr
     }
   }
 
-  override fun createInitializationOptions(): JsonObject? = JsonObject().apply {
+  override fun createInitializationOptions(): JsonObject = JsonObject().apply {
     addProperty(
       "formatterMode",
       settings.state.formatter.toString()

@@ -29,9 +29,4 @@
 
         <applicationService serviceImplementation="dev.thynanami.idea.typst.configuration.SettingsState"/>
     </extensions>
-
-    <applicationListeners>
-        <listener class="dev.thynanami.idea.typst.editor.InProcessJcefInitializer"
-                  topic="com.intellij.ide.AppLifecycleListener"/>
-    </applicationListeners>
 </idea-plugin>

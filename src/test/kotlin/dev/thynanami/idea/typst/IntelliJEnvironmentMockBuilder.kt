@@ -87,9 +87,7 @@ class IntelliJEnvironmentMockBuilder {
     every { AppDirsFactory.getInstance() } returns appDirsMock
 
     // Mock Settings and Application
-    val settingsStateMock = settingsState ?: mockk<SettingsState> {
-      customSettingsSetup?.invoke(this)
-    }
+    val settingsStateMock = settingsState
 
     val applicationMock = mockk<Application> {
       every { getService(SettingsState::class.java) } returns settingsStateMock

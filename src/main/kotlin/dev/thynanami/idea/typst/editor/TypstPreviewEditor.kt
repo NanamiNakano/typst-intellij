@@ -33,7 +33,6 @@ class TypstPreviewEditor(
 ) : UserDataHolderBase(), FileEditor {
   private val browser = JBCefBrowser.createBuilder()
     .setOffScreenRendering(false)
-    .setMouseWheelEventEnable(false)
     .build()
   private val cards = JPanel(CardLayout())
   private val panel = JPanel(BorderLayout()).apply {
