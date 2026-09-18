@@ -1,7 +1,7 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <id>dev.thynanami.idea.typst</id>
-    <name>Typst Support</name>
+    <name>Typst</name>
     <vendor>Gareth</vendor>
 
     <depends>com.intellij.modules.platform</depends>
@@ -11,7 +11,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <platform.lsp.integrationProvider
                 implementation="dev.thynanami.idea.typst.languageserver.TypstLspServerSupportProvider"/>
-        <notificationGroup id="TypstSupport"
+        <notificationGroup id="Typst"
                            displayType="BALLOON"/>
     </extensions>
 
@@ -25,7 +25,7 @@
                 language="Typst"
                 extensions="typ"/>
         <applicationConfigurable instance="dev.thynanami.idea.typst.configuration.SettingsConfigurable"
-                                 displayName="Typst Support Settings"/>
+                                 displayName="Typst Settings"/>
 
         <applicationService serviceImplementation="dev.thynanami.idea.typst.configuration.SettingsState"/>
     </extensions>

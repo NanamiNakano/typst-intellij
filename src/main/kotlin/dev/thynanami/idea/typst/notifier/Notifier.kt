@@ -22,5 +22,5 @@ object Notifier {
   fun warn(message: String) = notify(message, NotificationType.WARNING)
   fun info(message: String) = notify(message, NotificationType.INFORMATION)
 
-  private const val NOTIFICATION_GROUP_ID = "TypstSupport"
+  private const val NOTIFICATION_GROUP_ID = "Typst"
 }

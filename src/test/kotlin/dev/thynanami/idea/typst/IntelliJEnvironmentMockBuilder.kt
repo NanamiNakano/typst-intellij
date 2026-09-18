@@ -17,7 +17,7 @@ class IntelliJEnvironmentMockBuilder {
   private var pluginVersion: String? = null
   private var pluginId: String = "dev.thynanami.idea.typst"
   private var userDataDir: String? = null
-  private var appName: String = "TypstSupport"
+  private var appName: String = "Typst"
   private var appAuthor: String = "dev.thynanami"
   private var settingsState: SettingsState = SettingsState()
   private var customPluginSetup: (IdeaPluginDescriptor.() -> Unit)? = null
@@ -130,7 +130,7 @@ class IntelliJEnvironmentMockBuilder {
 
   class AppDirsBuilder {
     var userDataDir: String? = null
-    var appName: String = "TypstSupport"
+    var appName: String = "Typst"
     var appAuthor: String = "dev.thynanami"
     internal var customSetup: (AppDirs.() -> Unit)? = null
 

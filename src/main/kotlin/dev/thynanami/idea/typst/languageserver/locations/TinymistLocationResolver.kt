@@ -50,7 +50,7 @@ class TinymistLocationResolver : LocationResolver {
 
     val appDirs = AppDirsFactory.getInstance()
     val path =
-      Path.of(appDirs.getUserDataDir("TypstSupport", null, "dev.thynanami"))
+      Path.of(appDirs.getUserDataDir("Typst", null, "dev.thynanami"))
         .resolve("language-server")
         .resolve(TinymistBinary.DOWNLOAD_VERSION)
         .resolve(binary.binaryFilename)

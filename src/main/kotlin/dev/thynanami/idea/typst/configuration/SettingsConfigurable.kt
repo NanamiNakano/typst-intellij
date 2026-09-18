@@ -37,7 +37,7 @@ class SettingsConfigurable(
   private val settings: SettingsState = SettingsState.getInstance(),
   private val languageServerManager: LanguageServerManager = TypstLanguageServerManager(),
 ) :
-  BoundSearchableConfigurable("Typst Support Settings", "") {
+  BoundSearchableConfigurable("Typst Settings", "") {
 
   // UI Elements
   internal lateinit var fileField: Cell<TextFieldWithBrowseButton>
