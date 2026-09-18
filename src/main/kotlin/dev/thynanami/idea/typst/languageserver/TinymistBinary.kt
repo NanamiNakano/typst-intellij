@@ -9,7 +9,7 @@ import com.intellij.openapi.util.SystemInfo
 import dev.thynanami.idea.typst.BuildConfig
 import dev.thynanami.idea.typst.config.BinarySource
 import dev.thynanami.idea.typst.config.TypstSettings
-import dev.thynanami.idea.typst.notifier.Notifier
+import dev.thynanami.idea.typst.Notifier
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE

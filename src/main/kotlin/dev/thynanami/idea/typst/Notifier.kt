@@ -1,4 +1,4 @@
-package dev.thynanami.idea.typst.notifier
+package dev.thynanami.idea.typst
 
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
