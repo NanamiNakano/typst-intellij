@@ -1,9 +1,8 @@
 package dev.thynanami.idea.typst.languageserver
 
 import dev.thynanami.idea.typst.TypstIcons
+import dev.thynanami.idea.typst.isTypstFile
 import dev.thynanami.idea.typst.config.TypstSettingsConfigurable
-import dev.thynanami.idea.typst.languageserver.locations.TinymistBinary
-import dev.thynanami.idea.typst.languageserver.locations.isSupportedTypstFileType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.NlsActions
 import com.intellij.openapi.vfs.VirtualFile
@@ -18,7 +17,7 @@ class TypstLspServerSupportProvider : LspIntegrationProvider {
     file: VirtualFile,
     clientStarter: LspIntegrationProvider.LspClientStarter
   ) {
-    if (!file.isSupportedTypstFileType()) {
+    if (!file.isTypstFile()) {
       return
     }
 

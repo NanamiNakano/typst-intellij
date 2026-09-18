@@ -1,4 +1,4 @@
-package dev.thynanami.idea.typst.languageserver.locations
+package dev.thynanami.idea.typst.languageserver
 
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.GeneralCommandLine

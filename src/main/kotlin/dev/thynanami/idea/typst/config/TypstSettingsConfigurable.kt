@@ -12,7 +12,7 @@ import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.builder.selected
 import com.intellij.ui.dsl.builder.toNullableProperty
 import dev.thynanami.idea.typst.languageserver.TinymistLanguageServer
-import dev.thynanami.idea.typst.languageserver.locations.TinymistBinary
+import dev.thynanami.idea.typst.languageserver.TinymistBinary
 import dev.thynanami.idea.typst.notifier.Notifier
 
 class TypstSettingsConfigurable : BoundConfigurable("Typst Settings") {

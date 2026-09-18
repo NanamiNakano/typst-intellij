@@ -11,7 +11,7 @@ import com.intellij.platform.lsp.api.LspServerNotificationsHandler
 import com.intellij.platform.lsp.api.customization.LspCustomization
 import com.intellij.platform.lsp.api.customization.LspFormattingSupport
 import dev.thynanami.idea.typst.config.TypstSettings
-import dev.thynanami.idea.typst.languageserver.locations.isSupportedTypstFileType
+import dev.thynanami.idea.typst.isTypstFile
 import java.nio.file.Path
 
 class TinymistLanguageServerDescriptor(private val languageServerPath: Path, project: Project) :
@@ -30,15 +30,15 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     override fun createCommandLine(): GeneralCommandLine =
         GeneralCommandLine(languageServerPath.toString())
 
-    override fun isSupportedFile(file: VirtualFile): Boolean = file.isSupportedTypstFileType()
+    override fun isSupportedFile(file: VirtualFile): Boolean = file.isTypstFile()
 
     override val lspCustomization: LspCustomization = object : LspCustomization() {
         override val formattingCustomizer: LspFormattingSupport = object : LspFormattingSupport() {
             override fun shouldFormatThisFileExclusivelyByServer(
-              file: VirtualFile,
-              ideCanFormatThisFileItself: Boolean,
-              serverExplicitlyWantsToFormatThisFile: Boolean,
-            ): Boolean = file.isSupportedTypstFileType() || serverExplicitlyWantsToFormatThisFile
+                file: VirtualFile,
+                ideCanFormatThisFileItself: Boolean,
+                serverExplicitlyWantsToFormatThisFile: Boolean,
+            ): Boolean = true
         }
     }
 
