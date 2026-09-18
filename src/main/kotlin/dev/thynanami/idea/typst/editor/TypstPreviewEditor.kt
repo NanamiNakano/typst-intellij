@@ -1,8 +1,6 @@
 package dev.thynanami.idea.typst.editor
 
-import dev.thynanami.idea.typst.languageserver.locations.isSupportedTypstFileType
-import dev.thynanami.idea.typst.previewserver.PreviewServerManager
-import dev.thynanami.idea.typst.previewserver.TinymistPreviewServerManager
+import dev.thynanami.idea.typst.TinymistPreviewServer
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileEditor
@@ -15,7 +13,7 @@ import com.intellij.ui.jcef.JBCefBrowser
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
 import org.cef.handler.CefLoadHandler
-import org.cef.network.CefRequest
+import org.cef.handler.CefLoadHandlerAdapter
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.beans.PropertyChangeListener
@@ -26,11 +24,9 @@ import javax.swing.SwingConstants
 
 private val LOG = logger<TypstPreviewEditor>()
 
-class TypstPreviewEditor(
-  private val project: Project,
-  private val file: VirtualFile,
-  private val previewServerManager: PreviewServerManager = TinymistPreviewServerManager.getInstance(),
-) : UserDataHolderBase(), FileEditor {
+class TypstPreviewEditor(project: Project, private val file: VirtualFile) :
+  UserDataHolderBase(), FileEditor {
+  private val previewServer = TinymistPreviewServer(project, file.path)
   private val browser = JBCefBrowser.createBuilder()
     .setOffScreenRendering(false)
     .build()
@@ -48,30 +44,11 @@ class TypstPreviewEditor(
     cards.add(messagePanel("Failed to load preview"), FAILED_CARD)
     showCard(LOADING_CARD)
 
-    browser.jbCefClient.addLoadHandler(createLoadHandler(), browser.cefBrowser)
-    ApplicationManager.getApplication().invokeLater(::startPreview)
+    browser.jbCefClient.addLoadHandler(loadFailureHandler(), browser.cefBrowser)
+    startPreview()
   }
 
-  private fun createLoadHandler() = object : CefLoadHandler {
-    override fun onLoadingStateChange(
-      browser: CefBrowser?,
-      isLoading: Boolean,
-      canGoBack: Boolean,
-      canGoForward: Boolean,
-    ) = Unit
-
-    override fun onLoadStart(
-      browser: CefBrowser?,
-      frame: CefFrame?,
-      transitionType: CefRequest.TransitionType?,
-    ) = Unit
-
-    override fun onLoadEnd(browser: CefBrowser?, frame: CefFrame?, httpStatusCode: Int) {
-      if (frame?.isMain == true) {
-        LOG.info("Tinymist preview loaded with status $httpStatusCode: " + frame.url)
-      }
-    }
-
+  private fun loadFailureHandler() = object : CefLoadHandlerAdapter() {
     override fun onLoadError(
       browser: CefBrowser?,
       frame: CefFrame?,
@@ -79,7 +56,7 @@ class TypstPreviewEditor(
       errorText: String?,
       failedUrl: String?,
     ) {
-      if (frame?.isMain != true || disposed) return
+      if (frame?.isMain != true) return
 
       LOG.warn("Tinymist preview failed to load $failedUrl: $errorCode $errorText")
       showCard(FAILED_CARD)
@@ -87,32 +64,19 @@ class TypstPreviewEditor(
   }
 
   private fun startPreview() {
-    if (disposed) return
-    if (!file.isSupportedTypstFileType()) {
-      showCard(FAILED_CARD)
-      return
-    }
-
-    LOG.info("Starting preview for " + file.path)
-    previewServerManager.start(file.path, project).whenComplete { url, error ->
-      ApplicationManager.getApplication().invokeLater {
-        if (disposed) return@invokeLater
-
-        if (error != null || url.isNullOrBlank()) {
-          LOG.warn("Could not start preview for " + file.path, error)
-          showCard(FAILED_CARD)
-          return@invokeLater
-        }
-
-        showCard(BROWSER_CARD)
-        LOG.info("Loading preview from $url")
-        browser.loadURL(url)
+    previewServer.start().whenComplete { url, error ->
+      if (error != null) {
+        LOG.warn("Could not start preview for ${file.path}", error)
+        showCard(FAILED_CARD)
+        return@whenComplete
       }
+
+      showCard(BROWSER_CARD)
+      browser.loadURL(url)
     }
   }
 
   private fun showCard(name: String) {
-    if (disposed) return
     ApplicationManager.getApplication().invokeLater {
       if (!disposed) (cards.layout as CardLayout).show(cards, name)
     }
@@ -137,10 +101,8 @@ class TypstPreviewEditor(
   override fun removePropertyChangeListener(listener: PropertyChangeListener) = Unit
 
   override fun dispose() {
-    if (disposed) return
-
     disposed = true
-    previewServerManager.stop(file.path, project)
+    previewServer.stop()
     browser.dispose()
   }
 
