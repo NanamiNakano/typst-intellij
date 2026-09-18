@@ -4,7 +4,6 @@ import com.github.garetht.typstsupport.configuration.BinarySource
 import com.github.garetht.typstsupport.configuration.DefaultPathValidator
 import com.github.garetht.typstsupport.configuration.PathValidation
 import com.github.garetht.typstsupport.configuration.SettingsState
-import com.github.garetht.typstsupport.configuration.VersionRequirement
 import com.github.garetht.typstsupport.notifier.Notifier
 import net.harawata.appdirs.AppDirsFactory
 import java.net.URI
@@ -17,7 +16,6 @@ class TinymistLocationResolver : LocationResolver {
 
   private val binary =
     TinymistBinary(
-      version = VersionRequirement.version,
       osName = OsName.fromString(System.getProperty("os.name")),
       osArchitecture = OsArchitecture.fromString(System.getProperty("os.arch")),
     )
@@ -54,7 +52,7 @@ class TinymistLocationResolver : LocationResolver {
     val path =
       Path.of(appDirs.getUserDataDir("TypstSupport", null, "com.github.garetht.typstsupport"))
         .resolve("language-server")
-        .resolve(binary.versionPath)
+        .resolve(TinymistBinary.DOWNLOAD_VERSION)
         .resolve(binary.binaryFilename)
 
     popJnaNoClassPath()

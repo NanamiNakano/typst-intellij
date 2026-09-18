@@ -157,12 +157,14 @@ class DefaultExecutionValidatorTest {
     assertEquals(listOf("-V"), capturedCommandLine?.parametersList?.list)
   }
 
-  @Test
-  fun `should reject a binary version that is too low`() {
+  @ParameterizedTest
+  @ValueSource(strings = ["0.11.12", "0.15.8"])
+  fun `should accept valid custom binary versions without a minimum requirement`(version: String) {
     // Given
     val binaryPath = "/path/to/binary"
-    val versionOutput = "tinymist 0.11.12"
-    val expectedVersion = Version(1, 2, 3)
+    val versionOutput = "tinymist $version"
+    val (major, minor, patch) = version.split('.').map(String::toInt)
+    val expectedVersion = Version(major, minor, patch)
 
     every { pathValidator.validateBinaryFile(binaryPath) } returns PathValidation.Success
     every { processExecutor.executeProcess(any()) } returns ProcessOutput(versionOutput, "", 0, false, false)
@@ -171,6 +173,7 @@ class DefaultExecutionValidatorTest {
     val result = validator.validateBinaryExecution(binaryPath)
 
     // Then
-    assertInstanceOf(ExecutionValidation.Failed::class.java, result)
+    assertInstanceOf(ExecutionValidation.Success::class.java, result)
+    assertEquals(expectedVersion, (result as ExecutionValidation.Success).version)
   }
 } 

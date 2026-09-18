@@ -24,15 +24,12 @@ class TinymistLocationResolverTest {
 
   @ParameterizedTest
   @MethodSource("generateUrlArgs")
-  fun shouldGetUrl(version: String, osName: String, archName: String, expectedUrl: URI) {
+  fun shouldGetUrl(osName: String, archName: String, expectedUrl: URI) {
     restoreSystemProperties {
       System.setProperty("os.name", osName)
       System.setProperty("os.arch", archName)
 
       mockIntelliJEnvironment {
-        plugin {
-          this.version = version
-        }
         appDirs {
           this.userDataDir = ""
         }
@@ -53,9 +50,6 @@ class TinymistLocationResolverTest {
       System.setProperty("jna.noclasspath", "true")
 
       mockIntelliJEnvironment {
-        plugin {
-          this.version = "1.10"
-        }
         appDirs {
           this.userDataDir = ""
         }
@@ -90,14 +84,11 @@ class TinymistLocationResolverTest {
 
   @ParameterizedTest
   @MethodSource("generatePathArgs")
-  fun shouldGetPath(basePath: String, version: String, osName: String, expectedPath: String) {
+  fun shouldGetPath(basePath: String, osName: String, expectedPath: String) {
     restoreSystemProperties {
       System.setProperty("os.name", osName)
 
       mockIntelliJEnvironment {
-        plugin {
-          this.version = version
-        }
         appDirs {
           this.userDataDir = basePath
         }
@@ -127,7 +118,6 @@ class TinymistLocationResolverTest {
     )
 
     data class TestConfiguration(
-      val version: String,
       val os: OperatingSystem,
       val architecture: Architecture,
       val expectedUrl: URI
@@ -164,16 +154,11 @@ class TinymistLocationResolverTest {
       )
     )
 
-    private val supportedVersions = listOf(
-      "0.13.14",
-    )
-
     @JvmStatic
     fun generateUrlArgs(): Stream<Arguments> {
       return generateTestConfigurations()
         .map { config ->
           Arguments.of(
-            config.version,
             config.os.osNameProperty,
             config.architecture.osArchProperty,
             config.expectedUrl
@@ -185,57 +170,48 @@ class TinymistLocationResolverTest {
     private fun generateTestConfigurations(): Sequence<TestConfiguration> = sequence {
       for (os in supportedOperatingSystems) {
         for (architecture in supportedArchitectures) {
-          for (version in supportedVersions) {
-            val expectedUrl = buildDownloadUrl(
-              version = version,
-              platformId = os.platformId,
-              architectureId = architecture.platformId,
-              downloadExtension = os.downloadExtension
-            )
+          val expectedUrl = buildDownloadUrl(
+            platformId = os.platformId,
+            architectureId = architecture.platformId,
+            downloadExtension = os.downloadExtension
+          )
 
-            yield(
-              TestConfiguration(
-                version = version,
-                os = os,
-                architecture = architecture,
-                expectedUrl = expectedUrl
-              )
+          yield(
+            TestConfiguration(
+              os = os,
+              architecture = architecture,
+              expectedUrl = expectedUrl
             )
-          }
+          )
         }
       }
     }
 
     private fun buildDownloadUrl(
-      version: String,
       platformId: String,
       architectureId: String,
       downloadExtension: String
     ): URI {
-      val urlTemplate = "https://github.com/Myriad-Dreamin/tinymist/releases/download/v%s/tinymist-%s-%s%s"
-      return URI(urlTemplate.format(version, architectureId, platformId, downloadExtension))
+      val urlTemplate = "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.8/tinymist-%s-%s%s"
+      return URI(urlTemplate.format(architectureId, platformId, downloadExtension))
     }
 
     @JvmStatic
     fun generatePathArgs(): Stream<Arguments> {
       val seq = sequence {
         supportedOperatingSystems.forEach { osOpt ->
-          supportedVersions.forEach { version ->
-            val basePath = "/%s".format(UUID.randomUUID().toString())
-            val expectedPath = "%s/language-server/%s/tinymist%s".format(
+          val basePath = "/%s".format(UUID.randomUUID().toString())
+          val expectedPath = "%s/language-server/v0.15.8/tinymist%s".format(
+            basePath,
+            osOpt.executableExtension
+          )
+          yield(
+            Arguments.of(
               basePath,
-              "v0.13.14",
-              osOpt.executableExtension
+              osOpt.osNameProperty,
+              expectedPath
             )
-            yield(
-              Arguments.of(
-                basePath,
-                version,
-                osOpt.osNameProperty,
-                expectedPath
-              )
-            )
-          }
+          )
         }
       }
 

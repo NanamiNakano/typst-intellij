@@ -2,6 +2,7 @@ package com.github.garetht.typstsupport.configuration
 
 import com.github.garetht.typstsupport.languageserver.LanguageServerManager
 import com.github.garetht.typstsupport.languageserver.TypstLanguageServerManager
+import com.github.garetht.typstsupport.languageserver.locations.TinymistBinary
 import com.github.garetht.typstsupport.notifier.Notifier
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
@@ -55,7 +56,7 @@ class SettingsConfigurable(
         buttonsGroup("Binary filepath") {
           row {
             automaticRadioButton = radioButton(
-              "Use automatically downloaded binary (${VersionRequirement.version.toPathString()})",
+              "Use automatically downloaded binary (${TinymistBinary.DOWNLOAD_VERSION})",
               BinarySource.USE_AUTOMATIC_DOWNLOAD
             )
           }

@@ -4,11 +4,13 @@ import java.net.URI
 import kotlin.io.path.Path
 
 data class TinymistBinary(
-  private val version: Version,
   private val osName: OsName,
   private val osArchitecture: OsArchitecture
 ) {
-  val versionPath = Path(version.toPathString())
+  companion object {
+    const val DOWNLOAD_VERSION = "v0.15.8"
+  }
+
   val compressedFilename
     get() =
       Path(
@@ -18,7 +20,7 @@ data class TinymistBinary(
   val downloadUrl
     get() =
       URI(
-        "https://github.com/Myriad-Dreamin/tinymist/releases/download/$versionPath/$compressedFilename"
+        "https://github.com/Myriad-Dreamin/tinymist/releases/download/$DOWNLOAD_VERSION/$compressedFilename"
       )
 
 
