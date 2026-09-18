@@ -24,9 +24,7 @@
                 fieldName="INSTANCE"
                 language="Typst"
                 extensions="typ"/>
-        <applicationConfigurable instance="dev.thynanami.idea.typst.configuration.SettingsConfigurable"
+        <applicationConfigurable instance="dev.thynanami.idea.typst.config.TypstSettingsConfigurable"
                                  displayName="Typst Settings"/>
-
-        <applicationService serviceImplementation="dev.thynanami.idea.typst.configuration.SettingsState"/>
     </extensions>
 </idea-plugin>

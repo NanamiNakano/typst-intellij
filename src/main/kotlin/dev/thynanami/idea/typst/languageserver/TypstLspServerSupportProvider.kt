@@ -1,7 +1,7 @@
 package dev.thynanami.idea.typst.languageserver
 
 import dev.thynanami.idea.typst.TypstIcons
-import dev.thynanami.idea.typst.configuration.SettingsConfigurable
+import dev.thynanami.idea.typst.config.TypstSettingsConfigurable
 import dev.thynanami.idea.typst.languageserver.locations.TinymistBinary
 import dev.thynanami.idea.typst.languageserver.locations.isSupportedTypstFileType
 import com.intellij.openapi.project.Project
@@ -35,7 +35,7 @@ class TypstLspServerSupportProvider : LspIntegrationProvider {
       lspClient,
       currentFile,
       TypstIcons.WIDGET_ICON,
-      SettingsConfigurable::class.java
+      TypstSettingsConfigurable::class.java
     ) {
       override val widgetActionText: @NlsActions.ActionText String
         get() = "Typst (Tinymist)"

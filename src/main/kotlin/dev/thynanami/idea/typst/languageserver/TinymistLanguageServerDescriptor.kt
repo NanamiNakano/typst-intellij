@@ -10,8 +10,7 @@ import com.intellij.platform.lsp.api.LspClientDescriptor
 import com.intellij.platform.lsp.api.LspServerNotificationsHandler
 import com.intellij.platform.lsp.api.customization.LspCustomization
 import com.intellij.platform.lsp.api.customization.LspFormattingSupport
-import dev.thynanami.idea.typst.configuration.PathValidator.Companion.isValidPath
-import dev.thynanami.idea.typst.configuration.SettingsState
+import dev.thynanami.idea.typst.config.TypstSettings
 import dev.thynanami.idea.typst.languageserver.locations.isSupportedTypstFileType
 import java.nio.file.Path
 
@@ -19,10 +18,10 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     LspClientDescriptor(
         project,
         "Tinymist",
-        // filtering for .isValidPath allows us to get around some Jupyter strangeness, where
+        // filtering for a file system path allows us to get around some Jupyter strangeness, where
         // a file called Remote Server is said to be one of the base directories, causing the
         // language server to crash
-        *project.getBaseDirectories().filter { it.path.isValidPath() }.toTypedArray()
+        *project.getBaseDirectories().filter { it.hasFileSystemPath() }.toTypedArray()
     ) {
 
     override fun createLsp4jClient(handler: LspServerNotificationsHandler): Lsp4jClient =
@@ -44,7 +43,10 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     }
 
     override fun createInitializationOptions(): JsonObject = JsonObject().apply {
-        addProperty("formatterMode", SettingsState.getInstance().state.formatter.toString())
+        addProperty("formatterMode", TypstSettings.getInstance().formatter.toString())
         addProperty("customizedShowDocument", true)
     }
 }
+
+private fun VirtualFile.hasFileSystemPath(): Boolean =
+    path.startsWith("/") || path.contains("\\")
