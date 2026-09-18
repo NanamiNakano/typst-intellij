@@ -1,13 +1,10 @@
 package dev.thynanami.idea.typst
 
-import dev.thynanami.idea.typst.languageserver.TypstLanguageServerManager
-import dev.thynanami.idea.typst.languageserver.TypstLspServerSupportProvider
+import dev.thynanami.idea.typst.languageserver.TinymistLanguageServer
 import com.google.gson.Gson
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.platform.lsp.api.LspClient
-import com.intellij.platform.lsp.api.LspClientManager
-import com.intellij.platform.lsp.api.LspServerState
 import com.intellij.util.concurrency.AppExecutorUtil
 import kotlinx.coroutines.runBlocking
 import org.eclipse.lsp4j.ExecuteCommandParams
@@ -29,13 +26,14 @@ class TinymistPreviewServer(private val project: Project, private val filepath: 
 
   fun stop() {
     AppExecutorUtil.getAppExecutorService().execute {
-      runCatching { runBlocking { runningLanguageServer()?.execute(KILL_PREVIEW_COMMAND, taskId) } }
+      runCatching { runBlocking { killPreview() } }
         .onFailure { LOG.warn("Failed to stop tinymist preview for $filepath", it) }
     }
   }
 
   private suspend fun startPreview(): String {
-    val languageServer = waitForLanguageServer() ?: error("Tinymist language server is not running")
+    val languageServer = TinymistLanguageServer.awaitRunning(project)
+      ?: error("Tinymist language server is not running")
     val response = languageServer.execute(START_PREVIEW_COMMAND, previewArguments)
     val address = gson.toJsonTree(response).asJsonObject[STATIC_SERVER_ADDRESS].asString
 
@@ -43,18 +41,13 @@ class TinymistPreviewServer(private val project: Project, private val filepath: 
     return "http://$address"
   }
 
+  private suspend fun killPreview() {
+    TinymistLanguageServer.running(project)?.execute(KILL_PREVIEW_COMMAND, taskId)
+  }
+
   private suspend fun LspClient.execute(command: String, argument: Any): Any? = sendRequest {
     it.workspaceService.executeCommand(ExecuteCommandParams(command, listOf(argument)))
   }
-
-  private suspend fun waitForLanguageServer(): LspClient? = TypstLanguageServerManager.waitForServer(
-    LspClientManager.getInstance(project),
-    TypstLspServerSupportProvider::class.java,
-  )
-
-  private fun runningLanguageServer(): LspClient? = LspClientManager.getInstance(project)
-    .getClients(TypstLspServerSupportProvider::class.java)
-    .firstOrNull { it.state == LspServerState.Running }
 
   private companion object {
     const val START_PREVIEW_COMMAND = "tinymist.doStartPreview"

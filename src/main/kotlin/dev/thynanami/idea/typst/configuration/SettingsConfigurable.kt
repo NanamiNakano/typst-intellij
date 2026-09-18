@@ -1,13 +1,11 @@
 package dev.thynanami.idea.typst.configuration
 
-import dev.thynanami.idea.typst.languageserver.LanguageServerManager
-import dev.thynanami.idea.typst.languageserver.TypstLanguageServerManager
+import dev.thynanami.idea.typst.languageserver.TinymistLanguageServer
 import dev.thynanami.idea.typst.languageserver.locations.TinymistBinary
 import dev.thynanami.idea.typst.notifier.Notifier
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.components.service
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.BoundSearchableConfigurable
 import com.intellij.openapi.options.ConfigurationException
@@ -24,7 +22,6 @@ import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.builder.selected
-import kotlinx.coroutines.runBlocking
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.SwingConstants
@@ -35,7 +32,6 @@ class SettingsConfigurable(
     DefaultProcessExecutor(), pathValidator,
   ),
   private val settings: SettingsState = SettingsState.getInstance(),
-  private val languageServerManager: LanguageServerManager = TypstLanguageServerManager(),
 ) :
   BoundSearchableConfigurable("Typst Settings", "") {
 
@@ -185,20 +181,7 @@ class SettingsConfigurable(
 
     super.apply()
 
-    ApplicationManager.getApplication().invokeLater {
-      val projectManager = ApplicationManager.getApplication().service<ProjectManager>()
-      val openProjects = projectManager.openProjects
-      openProjects.forEach { project ->
-        ApplicationManager.getApplication().executeOnPooledThread {
-          runBlocking {
-            if (project.isDisposed) {
-              return@runBlocking
-            }
-            languageServerManager.initialStart(project)
-            Notifier.info("Restarting Tinymist server...")
-          }
-        }
-      }
-    }
+    Notifier.info("Restarting Tinymist server...")
+    ProjectManager.getInstance().openProjects.forEach(TinymistLanguageServer::restart)
   }
 }

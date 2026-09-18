@@ -15,7 +15,7 @@ import dev.thynanami.idea.typst.configuration.SettingsState
 import dev.thynanami.idea.typst.languageserver.locations.isSupportedTypstFileType
 import java.nio.file.Path
 
-class TinymistLanguageServerDescriptor(val languageServerPath: Path, project: Project) :
+class TinymistLanguageServerDescriptor(private val languageServerPath: Path, project: Project) :
     LspClientDescriptor(
         project,
         "Tinymist",
@@ -25,16 +25,8 @@ class TinymistLanguageServerDescriptor(val languageServerPath: Path, project: Pr
         *project.getBaseDirectories().filter { it.path.isValidPath() }.toTypedArray()
     ) {
 
-    init {
-        LOG.info("Language server project base dirs: ${project.getBaseDirectories().map { it.path }}")
-    }
-
-    override fun createLsp4jClient(handler: LspServerNotificationsHandler): Lsp4jClient {
-        LOG.info("Creating ${TypstLspClient::class.simpleName} language server client for project: ${project.name}")
-        return TypstLspClient(project, handler)
-    }
-
-    val settings = SettingsState.getInstance()
+    override fun createLsp4jClient(handler: LspServerNotificationsHandler): Lsp4jClient =
+        TypstLspClient(project, handler)
 
     override fun createCommandLine(): GeneralCommandLine =
         GeneralCommandLine(languageServerPath.toString())
@@ -52,10 +44,7 @@ class TinymistLanguageServerDescriptor(val languageServerPath: Path, project: Pr
     }
 
     override fun createInitializationOptions(): JsonObject = JsonObject().apply {
-        addProperty(
-            "formatterMode",
-            settings.state.formatter.toString()
-        )
+        addProperty("formatterMode", SettingsState.getInstance().state.formatter.toString())
         addProperty("customizedShowDocument", true)
     }
 }
