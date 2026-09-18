@@ -2,7 +2,7 @@
 <idea-plugin>
     <id>dev.thynanami.idea.typst</id>
     <name>Typst</name>
-    <vendor>Gareth</vendor>
+    <vendor>Nanami Nakano</vendor>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lsp</depends>
