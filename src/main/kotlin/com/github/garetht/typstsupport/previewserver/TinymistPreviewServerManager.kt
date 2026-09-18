@@ -2,167 +2,187 @@ package com.github.garetht.typstsupport.previewserver
 
 import com.github.garetht.typstsupport.languageserver.TypstLanguageServerManager
 import com.github.garetht.typstsupport.languageserver.TypstLspServerSupportProvider
-import com.google.gson.internal.LinkedTreeMap
+import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.platform.lsp.api.LspClient
 import com.intellij.platform.lsp.api.LspClientManager
+import com.intellij.platform.lsp.api.LspServerState
 import kotlinx.coroutines.runBlocking
 import org.eclipse.lsp4j.ExecuteCommandParams
-import java.io.IOException
-import java.net.ServerSocket
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
-
 
 private val LOG = logger<TinymistPreviewServerManager>()
 
 class TinymistPreviewServerManager : PreviewServerManager {
-
-  private data class ServerInfo(
-    val dataPlanePort: Int,
-    val controlPlanePort: Int,
-    val staticServerAddress: String,
-    val taskId: UUID,
-    val startTime: Long = System.currentTimeMillis(),
+  private data class PreviewKey(
+    val project: Project,
+    val filepath: String,
   )
 
-  private val servers = ConcurrentHashMap<String, ServerInfo>()
-  private val portCounter = AtomicInteger(STARTING_PORT)
+  private data class PreviewSession(
+    val taskId: String,
+    val url: String,
+  )
 
-  override fun createServer(filepath: String, project: Project, callback: (staticServerAddress: String?) -> Unit) {
-    val existingServer = servers[filepath]
-    if (existingServer?.staticServerAddress != null) {
-      // Double-check the process is still alive
-      callback(existingServer.staticServerAddress)
-      return
+  private val sessions = ConcurrentHashMap<PreviewKey, PreviewSession>()
+  private val pendingStarts = ConcurrentHashMap<PreviewKey, CompletableFuture<PreviewSession>>()
+
+  override fun start(filepath: String, project: Project): CompletableFuture<String> {
+    val key = PreviewKey(project, filepath)
+    sessions[key]?.let { session ->
+      return CompletableFuture.completedFuture(session.url)
     }
 
+    val start = pendingStarts.computeIfAbsent(key, ::startAsync)
+    return start.thenApply(PreviewSession::url)
+  }
+
+  override fun stop(filepath: String, project: Project) {
+    val key = PreviewKey(project, filepath)
+    pendingStarts.remove(key)?.cancel(false)
+
+    val session = sessions.remove(key) ?: return
     ApplicationManager.getApplication().executeOnPooledThread {
-      runBlocking {
-        // If we're at max servers, remove the oldest one
-        if (servers.size >= MAX_SERVERS) {
-          val oldestServer = servers.minByOrNull { it.value.startTime }
-          oldestServer?.let {
-            shutdownServer(
-              it.key, project
-            )
-          }
-        }
-
-        // Try to start the server with different ports if needed
-        for (attempt in 0 until MAX_START_RETRIES) {
-          LOG.info("Starting server on attempt ${attempt + 1}")
-          val dataPlanePort = findAvailablePort()
-          val controlPlanePort = findAvailablePort()
-
-          try {
-            val taskId = UUID.randomUUID()
-            val staticServerAddress = startServer(project, filepath, taskId, dataPlanePort, controlPlanePort)
-
-            if (staticServerAddress != null) {
-              servers[filepath] = ServerInfo(dataPlanePort, controlPlanePort, staticServerAddress, taskId)
-            }
-            callback(staticServerAddress)
-            return@runBlocking
-          } catch (e: Exception) {
-            LOG.error(
-              "Failed to start server for $filepath on attempt ${attempt + 1}: ${e.message}"
-            )
-            // Don't retry if we've hit max attempts
-            if (attempt == MAX_START_RETRIES - 1) {
-              throw e
-            }
-          }
-        }
+      runCatching {
+        runBlocking { killPreview(project, session.taskId) }
+      }.onFailure { error ->
+        LOG.warn("Failed to stop tinymist preview for $filepath", error)
       }
     }
   }
 
-  override fun shutdownServer(filepath: String, project: Project) {
+  private fun startAsync(key: PreviewKey): CompletableFuture<PreviewSession> {
+    val future = CompletableFuture<PreviewSession>()
     ApplicationManager.getApplication().executeOnPooledThread {
-      runBlocking {
-        val server = retrieveServer(project)
-        servers[filepath]?.let { serverInfo ->
-          server?.sendRequestSync {
-            it.workspaceService.executeCommand(
-              ExecuteCommandParams(
-                "tinymist.doKillPreview",
-                listOf(listOf(serverInfo.taskId.toString()))
-              )
-            )
-          }
-          servers.remove(filepath)
-        }
-      }
-    }
-  }
-
-  private fun findAvailablePort(): Int {
-    var attempts = 0
-    while (attempts < MAX_PORT_RETRIES) {
-      val port = portCounter.getAndIncrement()
       try {
-        ServerSocket(port).use {
-          return port
+        val session = runBlocking { startPreview(key) }
+        if (future.isCancelled) {
+          runBlocking { killPreview(key.project, session.taskId) }
+        } else {
+          sessions[key] = session
+          if (!future.complete(session)) {
+            sessions.remove(key, session)
+            runBlocking { killPreview(key.project, session.taskId) }
+          }
         }
-      } catch (e: IOException) {
-        // Port is in use, try the next one
-        attempts++
-        continue
+      } catch (error: Throwable) {
+        future.completeExceptionally(error)
+        LOG.warn("Failed to start tinymist preview for " + key.filepath, error)
+      } finally {
+        pendingStarts.remove(key, future)
       }
     }
-    return portCounter.get() - 1
+    return future
   }
 
-  private suspend fun startServer(
-    project: Project,
-    filename: String,
-    taskId: UUID,
-    dataPlanePort: Int,
-    controlPlanePort: Int
-  ): String? {
-    val options =
-      TinymistPreviewOptions(
-        dataPlaneHostPort = dataPlanePort,
-        controlPlaneHostPort = controlPlanePort,
-        partialRendering = true,
-        taskId = taskId,
-      )
+  private suspend fun startPreview(key: PreviewKey): PreviewSession {
+    val client = waitForServer(key.project)
+      ?: error("Tinymist language server did not become ready")
+    val taskId = UUID.randomUUID().toString()
+    val arguments = previewArguments(key.filepath, taskId)
 
-    LOG.info("Starting server with command: $options")
-
-    return retrieveServer(project)?.sendRequestSync {
+    LOG.info("Starting tinymist preview for " + key.filepath + ": " + arguments)
+    val result: Any? = client.sendRequest {
       it.workspaceService.executeCommand(
         ExecuteCommandParams(
-          "tinymist.doStartPreview",
-          options.toCommandParamsArguments(filename)
-        )
-      ).handle { result, throwable ->
-        LOG.info("Retrieved server: result: $result, $throwable")
-        if (throwable != null) {
-          null
-        } else {
-          (result as? LinkedTreeMap<*, *>)?.get("staticServerAddr") as? String
-        }
-      }
+          START_PREVIEW_COMMAND,
+          listOf(arguments),
+        ),
+      )
+    }
+
+    val url = previewUrl(result)
+      ?: error("Tinymist did not return a preview server address: $result")
+    LOG.info("Tinymist preview ready for " + key.filepath + " at " + url)
+    return PreviewSession(taskId, url)
+  }
+
+  private suspend fun killPreview(project: Project, taskId: String) {
+    runningServer(project)?.sendRequest {
+      it.workspaceService.executeCommand(
+        ExecuteCommandParams(
+          KILL_PREVIEW_COMMAND,
+          listOf(taskId),
+        ),
+      )
     }
   }
 
+  private suspend fun waitForServer(project: Project): LspClient? =
+    TypstLanguageServerManager.waitForServer(
+      LspClientManager.getInstance(project),
+      TypstLspServerSupportProvider::class.java,
+    )
 
-  private suspend fun retrieveServer(project: Project): LspClient? = TypstLanguageServerManager.waitForServer(
-    LspClientManager.getInstance(project), TypstLspServerSupportProvider::class.java
+  private fun runningServer(project: Project): LspClient? =
+    LspClientManager.getInstance(project)
+      .getClients(TypstLspServerSupportProvider::class.java)
+      .firstOrNull { it.state == LspServerState.Running }
+
+  private fun previewArguments(filepath: String, taskId: String): List<String> = listOf(
+    "--task-id",
+    taskId,
+    "--data-plane-host",
+    DATA_PLANE_HOST,
+    filepath,
   )
 
+  private fun previewUrl(result: Any?): String? {
+    val port = field(result, STATIC_SERVER_PORT)?.toIntValue()
+    if (port != null && port in 1..MAX_PORT) {
+      return "http://$LOOPBACK_HOST:$port"
+    }
+
+    return field(result, STATIC_SERVER_ADDRESS)
+      ?.toStringValue()
+      ?.takeIf(String::isNotBlank)
+      ?.let(::normalizePreviewServerAddress)
+  }
+
+  private fun field(result: Any?, name: String): Any? = when (result) {
+    is Map<*, *> -> result[name]
+    is JsonObject -> result.get(name)
+    else -> null
+  }
+
+  private fun Any.toIntValue(): Int? = when (this) {
+    is Number -> toInt()
+    is JsonPrimitive -> runCatching { asInt }.getOrNull()
+    is String -> toIntOrNull()
+    else -> null
+  }
+
+  private fun Any.toStringValue(): String? = when (this) {
+    is String -> this
+    is JsonPrimitive -> runCatching { asString }.getOrNull()
+    else -> null
+  }
+
   companion object {
-    private const val STARTING_PORT = 23627 // Start from default tinymist port
-    private const val MAX_SERVERS = 5
-    private const val MAX_START_RETRIES = 10
-    private const val MAX_PORT_RETRIES = 2
+    private const val START_PREVIEW_COMMAND = "tinymist.doStartPreview"
+    private const val KILL_PREVIEW_COMMAND = "tinymist.doKillPreview"
+    private const val STATIC_SERVER_PORT = "staticServerPort"
+    private const val STATIC_SERVER_ADDRESS = "staticServerAddr"
+    private const val LOOPBACK_HOST = "127.0.0.1"
+    private const val DATA_PLANE_HOST = "$LOOPBACK_HOST:0"
+    private const val MAX_PORT = 65_535
 
     private val instance = TinymistPreviewServerManager()
+
     fun getInstance(): PreviewServerManager = instance
   }
 }
+
+internal fun normalizePreviewServerAddress(address: String): String =
+  address.trim().let { normalized ->
+    if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+      normalized
+    } else {
+      "http://$normalized"
+    }
+  }

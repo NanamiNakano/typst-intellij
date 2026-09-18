@@ -18,8 +18,6 @@ import org.cef.handler.CefLoadHandler
 import org.cef.network.CefRequest
 import java.awt.BorderLayout
 import java.awt.CardLayout
-import java.awt.event.HierarchyEvent
-import java.awt.event.InputEvent
 import java.beans.PropertyChangeListener
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -31,138 +29,98 @@ private val LOG = logger<TypstPreviewEditor>()
 class TypstPreviewEditor(
   private val project: Project,
   private val file: VirtualFile,
-  private val previewServerManager: PreviewServerManager = TinymistPreviewServerManager.getInstance()
-) :
-  UserDataHolderBase(), FileEditor {
-  private val panel = JPanel(BorderLayout())
-  private val browser =
-    JBCefBrowser.createBuilder()
-      .setMouseWheelEventEnable(false)
-      .build()
-  private val cardLayout = CardLayout()
-  private val containerPanel = JPanel(cardLayout)
-  private val loadingPanel = JPanel(BorderLayout()).apply {
-    add(JLabel("Loading preview...", SwingConstants.CENTER), BorderLayout.CENTER)
+  private val previewServerManager: PreviewServerManager = TinymistPreviewServerManager.getInstance(),
+) : UserDataHolderBase(), FileEditor {
+  private val browser = JBCefBrowser.createBuilder()
+    .setMouseWheelEventEnable(true)
+    .build()
+  private val cards = JPanel(CardLayout())
+  private val panel = JPanel(BorderLayout()).apply {
+    add(cards, BorderLayout.CENTER)
   }
-  private val failedPanel = JPanel(BorderLayout()).apply {
-    add(JLabel("Failed to load preview", SwingConstants.CENTER), BorderLayout.CENTER)
-  }
+
+  @Volatile
+  private var disposed = false
 
   init {
-    component.addHierarchyListener { e ->
-      if (e.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L) {
-        if (component.isShowing) {
-          LOG.info("Showing preview for: ${file.path}")
-          if (file.isSupportedTypstFileType()) {
-            previewServerManager.createServer(file.path, project) { staticServerAddress ->
-              LOG.info("Preview server address: ${file.path}")
-              ApplicationManager.getApplication().invokeLater {
-                if (staticServerAddress == null) {
-                  cardLayout.show(containerPanel, "failed")
-                } else {
-                  browser.loadURL(staticServerAddress)
-                }
-              }
-            }
-          }
-        }
+    cards.add(messagePanel("Loading preview..."), LOADING_CARD)
+    cards.add(browser.component, BROWSER_CARD)
+    cards.add(messagePanel("Failed to load preview"), FAILED_CARD)
+    showCard(LOADING_CARD)
+
+    browser.jbCefClient.addLoadHandler(createLoadHandler(), browser.cefBrowser)
+    ApplicationManager.getApplication().invokeLater(::startPreview)
+  }
+
+  private fun createLoadHandler() = object : CefLoadHandler {
+    override fun onLoadingStateChange(
+      browser: CefBrowser?,
+      isLoading: Boolean,
+      canGoBack: Boolean,
+      canGoForward: Boolean,
+    ) = Unit
+
+    override fun onLoadStart(
+      browser: CefBrowser?,
+      frame: CefFrame?,
+      transitionType: CefRequest.TransitionType?,
+    ) = Unit
+
+    override fun onLoadEnd(browser: CefBrowser?, frame: CefFrame?, httpStatusCode: Int) {
+      if (frame?.isMain == true) {
+        LOG.info("Tinymist preview loaded with status $httpStatusCode: " + frame.url)
       }
     }
 
-    containerPanel.add(browser.component, "browser")
-    containerPanel.add(loadingPanel, "loading")
-    containerPanel.add(failedPanel, "failed")
-    panel.add(containerPanel, BorderLayout.CENTER)
+    override fun onLoadError(
+      browser: CefBrowser?,
+      frame: CefFrame?,
+      errorCode: CefLoadHandler.ErrorCode?,
+      errorText: String?,
+      failedUrl: String?,
+    ) {
+      if (frame?.isMain != true || disposed) return
 
-    cardLayout.show(containerPanel, "loading")
-
-    browser.jbCefClient.addLoadHandler(object : CefLoadHandler {
-      override fun onLoadingStateChange(
-        p0: CefBrowser?,
-        p1: Boolean,
-        p2: Boolean,
-        p3: Boolean
-      ) = Unit
-
-      override fun onLoadStart(
-        p0: CefBrowser?,
-        p1: CefFrame?,
-        p2: CefRequest.TransitionType?
-      ) = Unit
-
-      override fun onLoadEnd(browser: CefBrowser?, frame: CefFrame?, httpStatusCode: Int) {
-        LOG.info("Load ended with status: $httpStatusCode for: ${frame?.url}")
-        if (frame?.isMain == true) {
-          ApplicationManager.getApplication().invokeLater {
-            cardLayout.show(containerPanel, "browser")
-          }
-        }
-      }
-
-      override fun onLoadError(
-        browser: CefBrowser?,
-        frame: CefFrame?,
-        errorCode: CefLoadHandler.ErrorCode?,
-        errorText: String?,
-        failedUrl: String?
-      ) = Unit
-    }, browser.cefBrowser)
-
-    browser.component.addMouseWheelListener { e ->
-      // Check if Shift key is pressed
-      val isShiftPressed = (e.modifiersEx and InputEvent.SHIFT_DOWN_MASK) != 0
-
-      // Calculate the scroll delta
-      val scrollDelta = e.wheelRotation * e.scrollAmount * 3.5
-
-      // Convert to horizontal scroll if Shift is pressed, otherwise vertical
-      val deltaX =
-        if (isShiftPressed) {
-          scrollDelta
-        } else {
-          0.0
-        }
-      val deltaY =
-        if (isShiftPressed) {
-          0.0
-        } else {
-          scrollDelta
-        }
-
-      transmitScrollToPage(deltaX, deltaY)
+      LOG.warn("Tinymist preview failed to load $failedUrl: $errorCode $errorText")
+      showCard(FAILED_CARD)
     }
   }
 
-  private fun transmitScrollToPage(deltaX: Double, deltaY: Double) {
-    val scrollScript =
-      """
-    (function() {
-      // Create and dispatch a wheel event
-      var wheelEvent = new WheelEvent('wheel', {
-        deltaX: $deltaX,
-        deltaY: $deltaY,
-        deltaZ: 0,
-        deltaMode: WheelEvent.DOM_DELTA_PIXEL,
-        bubbles: true,
-        cancelable: false,
-        view: window
-      });
-      
-      // Dispatch to the document
-      document.dispatchEvent(wheelEvent);
-      
-      // Manually scroll the page
-      window.scrollBy($deltaX, $deltaY);
-    })();
-  """
-        .trimIndent()
+  private fun startPreview() {
+    if (disposed) return
+    if (!file.isSupportedTypstFileType()) {
+      showCard(FAILED_CARD)
+      return
+    }
 
-    browser.cefBrowser.executeJavaScript(scrollScript, "", 0)
+    LOG.info("Starting preview for " + file.path)
+    previewServerManager.start(file.path, project).whenComplete { url, error ->
+      ApplicationManager.getApplication().invokeLater {
+        if (disposed) return@invokeLater
+
+        if (error != null || url.isNullOrBlank()) {
+          LOG.warn("Could not start preview for " + file.path, error)
+          showCard(FAILED_CARD)
+          return@invokeLater
+        }
+
+        showCard(BROWSER_CARD)
+        LOG.info("Loading preview from $url")
+        browser.loadURL(url)
+      }
+    }
+  }
+
+  private fun showCard(name: String) {
+    if (disposed) return
+    ApplicationManager.getApplication().invokeLater {
+      if (!disposed) (cards.layout as CardLayout).show(cards, name)
+    }
   }
 
   override fun getComponent(): JComponent = panel
 
-  override fun getPreferredFocusedComponent(): JComponent? = browser.component
+  override fun getPreferredFocusedComponent(): JComponent = browser.component
 
   override fun getName(): String = "Preview"
 
@@ -172,15 +130,29 @@ class TypstPreviewEditor(
 
   override fun isModified(): Boolean = false
 
-  override fun isValid(): Boolean = true
+  override fun isValid(): Boolean = !disposed
 
-  override fun addPropertyChangeListener(p0: PropertyChangeListener) {}
+  override fun addPropertyChangeListener(listener: PropertyChangeListener) = Unit
 
-  override fun removePropertyChangeListener(p0: PropertyChangeListener) {}
+  override fun removePropertyChangeListener(listener: PropertyChangeListener) = Unit
 
   override fun dispose() {
+    if (disposed) return
+
+    disposed = true
+    previewServerManager.stop(file.path, project)
     browser.dispose()
   }
 
   override fun getFile(): VirtualFile = file
+
+  private companion object {
+    const val LOADING_CARD = "loading"
+    const val BROWSER_CARD = "browser"
+    const val FAILED_CARD = "failed"
+
+    fun messagePanel(message: String) = JPanel(BorderLayout()).apply {
+      add(JLabel(message, SwingConstants.CENTER), BorderLayout.CENTER)
+    }
+  }
 }

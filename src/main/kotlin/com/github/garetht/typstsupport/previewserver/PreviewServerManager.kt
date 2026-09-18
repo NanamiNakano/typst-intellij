@@ -1,8 +1,10 @@
 package com.github.garetht.typstsupport.previewserver
 
 import com.intellij.openapi.project.Project
+import java.util.concurrent.CompletableFuture
 
 interface PreviewServerManager {
-  fun createServer(filepath: String, project: Project, callback: (String?) -> Unit)
-  fun shutdownServer(filepath: String, project: Project)
+  fun start(filepath: String, project: Project): CompletableFuture<String>
+
+  fun stop(filepath: String, project: Project)
 }
