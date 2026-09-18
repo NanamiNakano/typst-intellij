@@ -144,7 +144,7 @@ changelog {
 kover {
   currentProject {
     instrumentation {
-      includedClasses.add("com.github.garetht.typstsupport.*")
+      includedClasses.add("dev.thynanami.idea.typst.*")
     }
   }
   reports { total { xml { onCheck = true } } }
@@ -163,7 +163,7 @@ tasks {
     // Keep filesystem access independent of the mocked IntelliJ application.
     systemProperty("idea.force.default.filesystem", "true")
     // Load the plugin and its dependencies without unrelated bundled plugins.
-    systemProperty("idea.load.plugins.id", "com.github.garetht.typstsupport")
+    systemProperty("idea.load.plugins.id", "dev.thynanami.idea.typst")
     testLogging {
       events("PASSED", "SKIPPED", "FAILED")
     }

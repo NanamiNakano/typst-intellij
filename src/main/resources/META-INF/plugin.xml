@@ -1,6 +1,6 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <id>com.github.garetht.typstsupport</id>
+    <id>dev.thynanami.idea.typst</id>
     <name>Typst Support</name>
     <vendor>Gareth</vendor>
 
@@ -10,28 +10,28 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <platform.lsp.integrationProvider
-                implementation="com.github.garetht.typstsupport.languageserver.TypstLspServerSupportProvider"/>
+                implementation="dev.thynanami.idea.typst.languageserver.TypstLspServerSupportProvider"/>
         <notificationGroup id="TypstSupport"
                            displayType="BALLOON"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.intellij">
-        <fileEditorProvider implementation="com.github.garetht.typstsupport.editor.TypstEditorProvider"/>
+        <fileEditorProvider implementation="dev.thynanami.idea.typst.editor.TypstEditorProvider"/>
 
         <fileType
                 name="Typst"
-                implementationClass="com.github.garetht.typstsupport.language.filetype.TypstFileType"
+                implementationClass="dev.thynanami.idea.typst.language.filetype.TypstFileType"
                 fieldName="INSTANCE"
                 language="Typst"
                 extensions="typ"/>
-        <applicationConfigurable instance="com.github.garetht.typstsupport.configuration.SettingsConfigurable"
+        <applicationConfigurable instance="dev.thynanami.idea.typst.configuration.SettingsConfigurable"
                                  displayName="Typst Support Settings"/>
 
-        <applicationService serviceImplementation="com.github.garetht.typstsupport.configuration.SettingsState"/>
+        <applicationService serviceImplementation="dev.thynanami.idea.typst.configuration.SettingsState"/>
     </extensions>
 
     <applicationListeners>
-        <listener class="com.github.garetht.typstsupport.editor.InProcessJcefInitializer"
+        <listener class="dev.thynanami.idea.typst.editor.InProcessJcefInitializer"
                   topic="com.intellij.ide.AppLifecycleListener"/>
     </applicationListeners>
 </idea-plugin>
