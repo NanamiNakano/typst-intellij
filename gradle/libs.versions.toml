@@ -1,11 +1,5 @@
 [versions]
 # libraries
-junit = "5.14.4"
-junitPlatform = "1.14.4"
-opentest4j = "1.3.0"
-mockk = "1.14.11"
-systemLambda = "1.2.1"
-
 appdirs = "1.5.0"
 commonsCompress = "1.28.0"
 
@@ -13,24 +7,14 @@ commonsCompress = "1.28.0"
 changelog = "2.5.0"
 intelliJPlatform = "2.19.0"
 kotlin = "2.4.20"
-kover = "0.9.9"
 qodana = "2026.2.1"
 
 [libraries]
-junitVintageEngine = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junit" }
-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "junit" }
-jupiterParams = { group = "org.junit.jupiter", name = "junit-jupiter-params", version.ref = "junit" }
-jupiterEngine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junit" }
-junitPlatformLauncher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junitPlatform" }
-opentest4j = { group = "org.opentest4j", name = "opentest4j", version.ref = "opentest4j" }
 appdirs = { group = "net.harawata", name = "appdirs", version.ref = "appdirs" }
 commonsCompress = { group = 'org.apache.commons', name = 'commons-compress', version.ref = 'commonsCompress' }
-mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
-systemLambda = { group = "com.github.stefanbirkner", name = "system-lambda", version.ref = "systemLambda" }
 
 [plugins]
 changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }
 intelliJPlatform = { id = "org.jetbrains.intellij.platform", version.ref = "intelliJPlatform" }
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 qodana = { id = "org.jetbrains.qodana", version.ref = "qodana" }

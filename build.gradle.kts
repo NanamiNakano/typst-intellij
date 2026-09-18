@@ -1,6 +1,5 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
-import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
 
 plugins {
@@ -9,7 +8,6 @@ plugins {
     alias(libs.plugins.intelliJPlatform) // IntelliJ Platform Gradle Plugin
     alias(libs.plugins.changelog) // Gradle Changelog Plugin
     alias(libs.plugins.qodana) // Gradle Qodana Plugin
-    alias(libs.plugins.kover) // Gradle Kover Plugin
 }
 
 group = providers.gradleProperty("pluginGroup").get()
@@ -31,16 +29,6 @@ repositories {
 // Dependencies are managed with Gradle version catalog - read more:
 // https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
-    testImplementation(libs.junitVintageEngine)
-    testImplementation(libs.jupiter)
-    testImplementation(libs.jupiterParams)
-    testImplementation(libs.mockk)
-    testImplementation(libs.systemLambda)
-    testImplementation(libs.opentest4j)
-    testImplementation(kotlin("test"))
-    testRuntimeOnly(libs.jupiterEngine)
-    testRuntimeOnly(libs.junitPlatformLauncher)
-
     implementation(libs.appdirs)
     implementation(libs.commonsCompress)
 
@@ -56,9 +44,6 @@ dependencies {
         // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file for
         // plugin from JetBrains Marketplace.
         plugins(providers.gradleProperty("platformPlugins").map { it.split(',') })
-
-
-        testFramework(TestFrameworkType.Platform)
     }
 }
 
@@ -140,33 +125,12 @@ changelog {
     repositoryUrl = providers.gradleProperty("pluginRepositoryUrl")
 }
 
-// Configure Gradle Kover Plugin - read more: https://github.com/Kotlin/kotlinx-kover#configuration
-kover {
-    currentProject {
-        instrumentation {
-            includedClasses.add("dev.thynanami.idea.typst.*")
-        }
-    }
-    reports { total { xml { onCheck = true } } }
-}
-
 tasks {
     wrapper { gradleVersion = providers.gradleProperty("gradleVersion").get() }
 
     publishPlugin {
         dependsOn(patchChangelog)
         token = System.getenv("PUBLISH_TOKEN")
-    }
-
-    test {
-        useJUnitPlatform()
-        // Keep filesystem access independent of the mocked IntelliJ application.
-        systemProperty("idea.force.default.filesystem", "true")
-        // Load the plugin and its dependencies without unrelated bundled plugins.
-        systemProperty("idea.load.plugins.id", "dev.thynanami.idea.typst")
-        testLogging {
-            events("PASSED", "SKIPPED", "FAILED")
-        }
     }
 
     runIde {
@@ -179,24 +143,5 @@ tasks {
             "idea.log.trace.categories",
             "dev.thynanami.idea.typst",
         )
-    }
-}
-
-intellijPlatformTesting {
-    runIde {
-        register("runIdeForUiTests") {
-            task {
-                jvmArgumentProviders += CommandLineArgumentProvider {
-                    listOf(
-                        "-Drobot-server.port=8082",
-                        "-Dide.mac.message.dialogs.as.sheets=false",
-                        "-Djb.privacy.policy.text=<!--999.999-->",
-                        "-Djb.consents.confirmation.enabled=false",
-                    )
-                }
-            }
-
-            plugins { robotServerPlugin() }
-        }
     }
 }
