@@ -17,7 +17,7 @@ group = providers.gradleProperty("pluginGroup").get()
 version = providers.gradleProperty("pluginVersion").get()
 
 // Set the JVM language level used to build the project.
-kotlin { jvmToolchain(17) }
+kotlin { jvmToolchain(25) }
 
 // Configure project's dependencies
 repositories {
@@ -38,6 +38,8 @@ dependencies {
   testImplementation(libs.systemLambda)
   testImplementation(libs.opentest4j)
   testImplementation(kotlin("test"))
+  testRuntimeOnly(libs.jupiterEngine)
+  testRuntimeOnly(libs.junitPlatformLauncher)
 
   implementation(libs.appdirs)
   implementation(libs.commonsCompress)
@@ -65,11 +67,8 @@ dependencies {
 intellijPlatform {
   pluginVerification {
     ides {
-      val productReleases = ProductReleasesValueSource().get()
-      val reducedProductReleases =
-        if (productReleases.size > 2) listOf(productReleases.first(), productReleases.last())
-        else productReleases
-      ides(reducedProductReleases)
+      create("IU", "2026.2")
+      current()
     }
   }
 
@@ -109,8 +108,7 @@ intellijPlatform {
       }
 
     ideaVersion {
-      sinceBuild = providers.gradleProperty("pluginSinceBuild")
-      untilBuild = providers.gradleProperty("pluginUntilBuild")
+      untilBuild = provider { null }
     }
   }
 
@@ -133,7 +131,6 @@ intellijPlatform {
       }
   }
 
-  pluginVerification { ides { recommended() } }
 }
 
 // Configure Gradle Changelog Plugin - read more:
@@ -144,7 +141,14 @@ changelog {
 }
 
 // Configure Gradle Kover Plugin - read more: https://github.com/Kotlin/kotlinx-kover#configuration
-kover { reports { total { xml { onCheck = true } } } }
+kover {
+  currentProject {
+    instrumentation {
+      includedClasses.add("com.github.garetht.typstsupport.*")
+    }
+  }
+  reports { total { xml { onCheck = true } } }
+}
 
 tasks {
   wrapper { gradleVersion = providers.gradleProperty("gradleVersion").get() }
@@ -156,6 +160,10 @@ tasks {
 
   test {
     useJUnitPlatform()
+    // Keep filesystem access independent of the mocked IntelliJ application.
+    systemProperty("idea.force.default.filesystem", "true")
+    // Load the plugin and its dependencies without unrelated bundled plugins.
+    systemProperty("idea.load.plugins.id", "com.github.garetht.typstsupport")
     testLogging {
       events("PASSED", "SKIPPED", "FAILED")
     }
@@ -180,4 +188,3 @@ intellijPlatformTesting {
     }
   }
 }
-

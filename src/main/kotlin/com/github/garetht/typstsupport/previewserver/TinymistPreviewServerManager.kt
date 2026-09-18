@@ -6,8 +6,8 @@ import com.google.gson.internal.LinkedTreeMap
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
-import com.intellij.platform.lsp.api.LspServer
-import com.intellij.platform.lsp.api.LspServerManager
+import com.intellij.platform.lsp.api.LspClient
+import com.intellij.platform.lsp.api.LspClientManager
 import kotlinx.coroutines.runBlocking
 import org.eclipse.lsp4j.ExecuteCommandParams
 import java.io.IOException
@@ -152,8 +152,8 @@ class TinymistPreviewServerManager : PreviewServerManager {
   }
 
 
-  private suspend fun retrieveServer(project: Project): LspServer? = TypstLanguageServerManager.waitForServer(
-    LspServerManager.getInstance(project), TypstLspServerSupportProvider::class.java
+  private suspend fun retrieveServer(project: Project): LspClient? = TypstLanguageServerManager.waitForServer(
+    LspClientManager.getInstance(project), TypstLspServerSupportProvider::class.java
   )
 
   companion object {

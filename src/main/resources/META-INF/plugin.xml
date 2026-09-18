@@ -4,10 +4,12 @@
     <name>Typst Support</name>
     <vendor>Gareth</vendor>
 
-    <depends>com.intellij.modules.ultimate</depends>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lsp</depends>
+    <depends>com.intellij.modules.jcef</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <platform.lsp.serverSupportProvider
+        <platform.lsp.integrationProvider
                 implementation="com.github.garetht.typstsupport.languageserver.TypstLspServerSupportProvider"/>
         <notificationGroup id="TypstSupport"
                            displayType="BALLOON"/>

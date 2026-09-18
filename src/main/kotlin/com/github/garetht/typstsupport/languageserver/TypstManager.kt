@@ -3,12 +3,12 @@ package com.github.garetht.typstsupport.languageserver
 import com.github.garetht.typstsupport.languageserver.downloader.DownloadStatus
 import com.github.garetht.typstsupport.languageserver.downloader.TinymistDownloadScheduler
 import com.intellij.openapi.project.Project
-import com.intellij.platform.lsp.api.LspServerSupportProvider
+import com.intellij.platform.lsp.api.LspIntegrationProvider
 
 class TypstManager(
   private val lsDownloader: TinymistDownloadScheduler,
   val project: Project,
-  private val serverStarter: LspServerSupportProvider.LspServerStarter
+  private val clientStarter: LspIntegrationProvider.LspClientStarter
 ) {
   fun startIfRequired() {
     val status = lsDownloader.obtainLanguageServerBinary(project)
@@ -17,7 +17,7 @@ class TypstManager(
       is DownloadStatus.Downloaded -> {
         // This is where the server actually gets started – it is provided the
         // path to the server binary
-        serverStarter.ensureServerStarted(TinymistLanguageServerDescriptor(status.path, project))
+        clientStarter.ensureClientStarted(TinymistLanguageServerDescriptor(status.path, project))
       }
       else -> {}
     }

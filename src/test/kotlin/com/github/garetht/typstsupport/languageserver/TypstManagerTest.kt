@@ -5,7 +5,7 @@ import com.github.garetht.typstsupport.languageserver.downloader.DownloadStatus
 import com.github.garetht.typstsupport.languageserver.downloader.TinymistDownloadScheduler
 import com.github.garetht.typstsupport.mockIntelliJEnvironment
 import com.intellij.openapi.project.Project
-import com.intellij.platform.lsp.api.LspServerSupportProvider
+import com.intellij.platform.lsp.api.LspIntegrationProvider
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
@@ -44,25 +44,25 @@ class TypstManagerTest {
   fun giventypstFilePresence_EnsureStartedIfPresent() {
     // Arrange
     val project = getMockedProject()
-    val serverStarter = mockk<LspServerSupportProvider.LspServerStarter>(relaxed = true)
+    val clientStarter = mockk<LspIntegrationProvider.LspClientStarter>(relaxed = true)
 
-    val typstManager = TypstManager(getImmediateDownloadScheduler(project), project, serverStarter)
+    val typstManager = TypstManager(getImmediateDownloadScheduler(project), project, clientStarter)
 
     // Act
     typstManager.startIfRequired()
 
     // Assert
-    verify(exactly = 1) { serverStarter.ensureServerStarted(ofType(TinymistLanguageServerDescriptor::class)) }
+    verify(exactly = 1) { clientStarter.ensureClientStarted(ofType(TinymistLanguageServerDescriptor::class)) }
   }
 
   @Test
   fun givenStarting_EnsureLanguageServerIsDownloaded() {
     // Arrange
     val project = getMockedProject()
-    val serverStarter = mockk<LspServerSupportProvider.LspServerStarter>(relaxed = true)
+    val clientStarter = mockk<LspIntegrationProvider.LspClientStarter>(relaxed = true)
     val typstLsDownloader = getImmediateDownloadScheduler(project)
 
-    val typstManager = TypstManager(typstLsDownloader, project, serverStarter)
+    val typstManager = TypstManager(typstLsDownloader, project, clientStarter)
 
     // Act
     typstManager.startIfRequired()
@@ -75,16 +75,16 @@ class TypstManagerTest {
   fun givenStarting_EnsureStartedWithLocationDownloadedTo() {
     // Arrange
     val project = getMockedProject()
-    val serverStarter = mockk<LspServerSupportProvider.LspServerStarter>(relaxed = true)
+    val clientStarter = mockk<LspIntegrationProvider.LspClientStarter>(relaxed = true)
     val mockPath = Path.of("/" + UUID.randomUUID())
     val typstLsDownloader = getImmediateDownloadScheduler(project, mockPath)
 
-    val typstManager = TypstManager(typstLsDownloader, project, serverStarter)
+    val typstManager = TypstManager(typstLsDownloader, project, clientStarter)
 
     // Act
     typstManager.startIfRequired()
 
     // Assert
-    verify { serverStarter.ensureServerStarted(match<TinymistLanguageServerDescriptor> { it.languageServerPath == mockPath }) }
+    verify { clientStarter.ensureClientStarted(match<TinymistLanguageServerDescriptor> { it.languageServerPath == mockPath }) }
   }
 }

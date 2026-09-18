@@ -10,15 +10,16 @@ import com.intellij.openapi.project.BaseProjectDirectories.Companion.getBaseDire
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.lsp.api.Lsp4jClient
-import com.intellij.platform.lsp.api.LspServerDescriptor
+import com.intellij.platform.lsp.api.LspClientDescriptor
 import com.intellij.platform.lsp.api.LspServerNotificationsHandler
+import com.intellij.platform.lsp.api.customization.LspCustomization
 import com.intellij.platform.lsp.api.customization.LspFormattingSupport
 import java.nio.file.Path
 
 private val LOG = logger<TinymistLanguageServerDescriptor>()
 
 class TinymistLanguageServerDescriptor(val languageServerPath: Path, project: Project) :
-  LspServerDescriptor(
+  LspClientDescriptor(
     project,
     "Tinymist",
     // filtering for .isValidPath allows us to get around some Jupyter strangeness, where
@@ -43,12 +44,14 @@ class TinymistLanguageServerDescriptor(val languageServerPath: Path, project: Pr
 
   override fun isSupportedFile(file: VirtualFile): Boolean = file.isSupportedTypstFileType()
 
-  override val lspFormattingSupport: LspFormattingSupport = object : LspFormattingSupport() {
-    override fun shouldFormatThisFileExclusivelyByServer(
-      file: VirtualFile,
-      ideCanFormatThisFileItself: Boolean,
-      serverExplicitlyWantsToFormatThisFile: Boolean
-    ): Boolean = file.isSupportedTypstFileType() || serverExplicitlyWantsToFormatThisFile
+  override val lspCustomization: LspCustomization = object : LspCustomization() {
+    override val formattingCustomizer: LspFormattingSupport = object : LspFormattingSupport() {
+      override fun shouldFormatThisFileExclusivelyByServer(
+        file: VirtualFile,
+        ideCanFormatThisFileItself: Boolean,
+        serverExplicitlyWantsToFormatThisFile: Boolean
+      ): Boolean = file.isSupportedTypstFileType() || serverExplicitlyWantsToFormatThisFile
+    }
   }
 
   override fun createInitializationOptions(): JsonObject? = JsonObject().apply {

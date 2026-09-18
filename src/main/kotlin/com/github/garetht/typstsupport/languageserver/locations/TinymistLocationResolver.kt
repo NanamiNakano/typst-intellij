@@ -6,13 +6,10 @@ import com.github.garetht.typstsupport.configuration.PathValidation
 import com.github.garetht.typstsupport.configuration.SettingsState
 import com.github.garetht.typstsupport.configuration.VersionRequirement
 import com.github.garetht.typstsupport.notifier.Notifier
-import com.intellij.ide.plugins.PluginManagerCore
-import com.intellij.openapi.extensions.PluginId
 import net.harawata.appdirs.AppDirsFactory
 import java.net.URI
 import java.nio.file.Path
 
-private const val TYPST_SUPPORT_ID = "com.github.garetht.typstsupport"
 class TinymistLocationResolver : LocationResolver {
   private val jnaNoClassPathKey = "jna.noclasspath"
   private var jnaNoClassPath: String? = null
@@ -51,18 +48,16 @@ class TinymistLocationResolver : LocationResolver {
       }
     }
 
-    PluginManagerCore.getPlugin(PluginId.getId(TYPST_SUPPORT_ID))!!.run {
-      pushJnaNoClassPathFalse()
+    pushJnaNoClassPathFalse()
 
-      val appDirs = AppDirsFactory.getInstance()
-      val path =
-        Path.of(appDirs.getUserDataDir("TypstSupport", null, "com.github.garetht.typstsupport"))
-          .resolve("language-server")
-          .resolve(binary.versionPath)
-          .resolve(binary.binaryFilename)
+    val appDirs = AppDirsFactory.getInstance()
+    val path =
+      Path.of(appDirs.getUserDataDir("TypstSupport", null, "com.github.garetht.typstsupport"))
+        .resolve("language-server")
+        .resolve(binary.versionPath)
+        .resolve(binary.binaryFilename)
 
-      popJnaNoClassPath()
-      return path
-    }
+    popJnaNoClassPath()
+    return path
   }
 }
