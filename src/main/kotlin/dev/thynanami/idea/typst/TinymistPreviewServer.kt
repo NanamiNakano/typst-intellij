@@ -17,7 +17,7 @@ private val gson = Gson()
 class TinymistPreviewServer(private val project: Project, private val filepath: String) {
   private val taskId = UUID.randomUUID().toString()
   private val previewArguments =
-    listOf("--task-id", taskId, "--data-plane-host", EPHEMERAL_LOOPBACK_PORT, filepath)
+    listOf("--task-id", taskId, "--data-plane-host", LOOPBACK_DATA_PLANE_HOST, filepath)
 
   fun start(): CompletableFuture<String> = CompletableFuture.supplyAsync(
     { runBlocking { startPreview() } },
@@ -53,6 +53,6 @@ class TinymistPreviewServer(private val project: Project, private val filepath: 
     const val START_PREVIEW_COMMAND = "tinymist.doStartPreview"
     const val KILL_PREVIEW_COMMAND = "tinymist.doKillPreview"
     const val STATIC_SERVER_ADDRESS = "staticServerAddr"
-    const val EPHEMERAL_LOOPBACK_PORT = "127.0.0.1:0"
+    const val LOOPBACK_DATA_PLANE_HOST = "127.0.0.1:0"
   }
 }

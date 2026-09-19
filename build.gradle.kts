@@ -1,6 +1,10 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
+import com.github.gradle.node.task.NodeTask
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
+import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
 
 plugins {
     id("java")
@@ -9,6 +13,7 @@ plugins {
     alias(libs.plugins.changelog)
     alias(libs.plugins.qodana)
     alias(libs.plugins.buildConfig)
+    alias(libs.plugins.node)
 }
 
 group = providers.gradleProperty("pluginGroup").get()
@@ -59,7 +64,7 @@ fun downloadTinymist(rustTarget: String): TaskProvider<Sync> {
             eachFile { relativePath = RelativePath(true, "bin", name) }
         }
         includeEmptyDirs = false
-        into(layout.projectDirectory.dir("native/$rustTarget"))
+        into(layout.buildDirectory.dir("native/$rustTarget"))
     }
 }
 
@@ -71,6 +76,114 @@ val tinymistDownloads = listOf(
     "x86_64-pc-windows-msvc",
     "x86_64-unknown-linux-gnu",
 ).associateWith(::downloadTinymist)
+
+node {
+    version = providers.gradleProperty("nodeVersion")
+    download = true
+    workDir = layout.buildDirectory.dir("nodejs")
+}
+
+val textMateSources = layout.projectDirectory.dir("vendor/tinymist/syntaxes/textmate")
+val textMateGeneratorDirectory = layout.buildDirectory.dir("textmate/generator")
+
+val stageTextMateGenerator = tasks.register<Sync>("stageTextMateGenerator") {
+    description = "Stage the vendored Typst TextMate generator, restricted to look-behinds Joni can compile"
+    from(textMateSources) { include("*.ts") }
+    filesMatching("feature.ts") {
+        filter { line ->
+            line.replace("FIXED_LENGTH_LOOK_BEHIND = false", "FIXED_LENGTH_LOOK_BEHIND = true")
+        }
+    }
+    into(textMateGeneratorDirectory)
+}
+
+val generateTextMateGrammars = tasks.register<NodeTask>("generateTextMateGrammars") {
+    description = "Generate the Typst TextMate grammars"
+    inputs.files(stageTextMateGenerator)
+    workingDir = textMateGeneratorDirectory
+    script = textMateGeneratorDirectory.map { it.file("main.ts") }
+    options = listOf(
+        "--eval",
+        "import('./main.ts').then((generator) => generator.generate())",
+    )
+    outputs.files(
+        textMateGeneratorDirectory.map { it.file("typst.tmLanguage.json") },
+        textMateGeneratorDirectory.map { it.file("typst-code.tmLanguage.json") },
+    )
+}
+
+val vscodeExtension = layout.projectDirectory.dir("vendor/tinymist/editors/vscode")
+val generatedGrammarPrefix = "./out/"
+
+val textMateBundle = tasks.register("textMateBundle") {
+    description = "Assemble one single-grammar TextMate bundle per Typst language"
+    val vscodeRoot = vscodeExtension
+    val vscodeManifest = vscodeExtension.file("package.json")
+    val grammarDirectory = textMateGeneratorDirectory
+    val bundleRoot = layout.buildDirectory.dir("textmate/bundle")
+    val bundleVersion = tinymistVersion
+    val grammarPrefix = generatedGrammarPrefix
+    inputs.file(vscodeManifest)
+    inputs.dir(vscodeExtension.dir("syntaxes"))
+    inputs.files(generateTextMateGrammars)
+    outputs.dir(bundleRoot)
+
+    doLast {
+        bundleRoot.get().asFile.deleteRecursively()
+
+        @Suppress("UNCHECKED_CAST")
+        val contributes = (JsonSlurper().parse(vscodeManifest.asFile) as Map<String, Any>)
+            .getValue("contributes") as Map<String, List<Map<String, Any>>>
+
+        fun bundleRelative(path: Any?) = "./" + File(path.toString()).name
+
+        val languagesById = contributes.getValue("languages").associateBy { it.getValue("id") }
+
+        contributes.getValue("grammars")
+            .filter { it.getValue("path").toString().startsWith(grammarPrefix) }
+            .forEach { grammar ->
+                val languageId = grammar.getValue("language").toString()
+                val language = languagesById.getValue(languageId)
+                val configuration = language.getValue("configuration").toString()
+                val grammarName = File(grammar.getValue("path").toString()).name
+                val extensions = (language.getValue("extensions") as List<Any>)
+                    .map { it.toString().removePrefix(".") }
+                val bundle = bundleRoot.get().dir(languageId).apply { asFile.mkdirs() }
+
+                bundle.file("package.json").asFile.writeText(
+                    JsonOutput.prettyPrint(
+                        JsonOutput.toJson(
+                            mapOf(
+                                "name" to languageId,
+                                "version" to bundleVersion,
+                                "contributes" to mapOf(
+                                    "languages" to listOf(
+                                        language - "icon" + ("configuration" to bundleRelative(configuration))
+                                    ),
+                                    "grammars" to listOf(
+                                        grammar + ("path" to bundleRelative(grammar.getValue("path")))
+                                    ),
+                                ),
+                            )
+                        )
+                    )
+                )
+
+                bundle.file(File(configuration).name).asFile
+                    .writeBytes(vscodeRoot.file(configuration.removePrefix("./")).asFile.readBytes())
+
+                val declaredFileTypes = """"fileTypes":${JsonOutput.toJson(extensions)},"""
+                bundle.file(grammarName).asFile.writeText(
+                    grammarDirectory.get().file(grammarName).asFile.readText()
+                        .replaceFirst("{", "{$declaredFileTypes")
+                )
+            }
+    }
+}
+
+tasks.withType<PrepareSandboxTask>().configureEach {
+    from(textMateBundle) { into(pluginName.map { "$it/textmate" }) }
+}
 
 dependencies {
     intellijPlatform {
@@ -156,6 +269,7 @@ buildConfig {
     packageName("dev.thynanami.idea.typst")
     buildConfigField("TINYMIST_VERSION", tinymistVersion)
     buildConfigField("TINYMIST_DIRECTORY", "bin")
+    buildConfigField("TEXTMATE_DIRECTORY", "textmate")
 }
 
 changelog {

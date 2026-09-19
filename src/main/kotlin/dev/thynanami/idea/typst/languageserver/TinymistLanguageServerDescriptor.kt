@@ -9,6 +9,7 @@ import com.intellij.platform.lsp.api.Lsp4jClient
 import com.intellij.platform.lsp.api.LspClientDescriptor
 import com.intellij.platform.lsp.api.LspServerNotificationsHandler
 import com.intellij.platform.lsp.api.customization.LspCustomization
+import com.intellij.platform.lsp.api.customization.LspDiagnosticsSupport
 import com.intellij.platform.lsp.api.customization.LspFormattingSupport
 import dev.thynanami.idea.typst.config.TypstSettings
 import dev.thynanami.idea.typst.isTypstFile
@@ -33,6 +34,8 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     override fun isSupportedFile(file: VirtualFile): Boolean = file.isTypstFile()
 
     override val lspCustomization: LspCustomization = object : LspCustomization() {
+        override val diagnosticsCustomizer: LspDiagnosticsSupport = TypstDiagnosticsSupport()
+
         override val formattingCustomizer: LspFormattingSupport = object : LspFormattingSupport() {
             override fun shouldFormatThisFileExclusivelyByServer(
                 file: VirtualFile,

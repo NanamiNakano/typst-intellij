@@ -1,6 +1,6 @@
 package dev.thynanami.idea.typst.editor
 
-import dev.thynanami.idea.typst.isTypstFile
+import dev.thynanami.idea.typst.isTypstMarkupFile
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorPolicy
 import com.intellij.openapi.fileEditor.FileEditorProvider
@@ -10,7 +10,7 @@ import com.intellij.openapi.vfs.VirtualFile
 
 class TypstEditorProvider : FileEditorProvider, DumbAware {
   override fun accept(project: Project, file: VirtualFile): Boolean {
-    return file.isTypstFile()
+    return file.isTypstMarkupFile()
   }
 
   override fun createEditor(project: Project, file: VirtualFile): FileEditor {

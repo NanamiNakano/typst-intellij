@@ -15,7 +15,7 @@ import dev.thynanami.idea.typst.languageserver.TinymistLanguageServer
 import dev.thynanami.idea.typst.languageserver.TinymistBinary
 import dev.thynanami.idea.typst.Notifier
 
-class TypstSettingsConfigurable : BoundConfigurable("Typst Settings") {
+class TypstSettingsConfigurable : BoundConfigurable("Typst") {
     private val settings = TypstSettings.getInstance()
 
     override fun createPanel(): DialogPanel = panel {

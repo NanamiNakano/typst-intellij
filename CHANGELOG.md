@@ -1,6 +1,7 @@
 ## [Unreleased]
 
-- `tinymist` is now bundled in plugin
+- `tinymist` is now bundled in plugin.
+- Add TextMate grammar.
 
 ## [0.0.7]
 

@@ -4,6 +4,7 @@ buildConfig = "6.1.1"
 changelog = "2.5.0"
 intelliJPlatform = "2.19.0"
 kotlin = "2.4.20"
+node = "7.1.0"
 qodana = "2026.2.1"
 
 [plugins]
@@ -11,4 +12,5 @@ buildConfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildConfig
 changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }
 intelliJPlatform = { id = "org.jetbrains.intellij.platform", version.ref = "intelliJPlatform" }
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+node = { id = "com.github.node-gradle.node", version.ref = "node" }
 qodana = { id = "org.jetbrains.qodana", version.ref = "qodana" }

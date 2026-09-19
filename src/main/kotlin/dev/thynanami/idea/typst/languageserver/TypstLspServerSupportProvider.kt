@@ -41,7 +41,7 @@ class TypstLspServerSupportProvider : LspIntegrationProvider, PluginAware {
         return object : LspClientWidgetItem(
             lspClient,
             currentFile,
-            TypstIcons.WIDGET_ICON,
+            TypstIcons.TYPST,
             TypstSettingsConfigurable::class.java
         ) {
             override val widgetActionText = "Tinymist"

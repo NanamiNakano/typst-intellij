@@ -7,24 +7,42 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lsp</depends>
     <depends>com.intellij.modules.jcef</depends>
-
-    <extensions defaultExtensionNs="com.intellij">
-        <platform.lsp.integrationProvider
-                implementation="dev.thynanami.idea.typst.languageserver.TypstLspServerSupportProvider"/>
-        <notificationGroup id="Typst"
-                           displayType="BALLOON"/>
-    </extensions>
+    <depends>org.jetbrains.plugins.textmate</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <fileEditorProvider implementation="dev.thynanami.idea.typst.editor.TypstEditorProvider"/>
-
         <fileType
                 name="Typst"
                 implementationClass="dev.thynanami.idea.typst.TypstFileType"
                 fieldName="INSTANCE"
                 language="Typst"
                 extensions="typ"/>
-        <applicationConfigurable instance="dev.thynanami.idea.typst.config.TypstSettingsConfigurable"
-                                 displayName="Typst Settings"/>
+        <fileType
+                name="Typst (Code Mode)"
+                implementationClass="dev.thynanami.idea.typst.TypstCodeFileType"
+                fieldName="INSTANCE"
+                language="TypstCode"
+                extensions="typc"/>
+        <applicationConfigurable id="dev.thynanami.idea.typst.settings"
+                                 parentId="language"
+                                 instance="dev.thynanami.idea.typst.config.TypstSettingsConfigurable"
+                                 displayName="Typst"/>
+        <platform.lsp.integrationProvider
+                implementation="dev.thynanami.idea.typst.languageserver.TypstLspServerSupportProvider"/>
+        <textmate.bundleProvider implementation="dev.thynanami.idea.typst.TypstTextMateBundleProvider"/>
+        <notificationGroup id="Typst"
+                           displayType="BALLOON"/>
+        <editorHighlighterProvider
+                filetype="Typst"
+                implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+        <lang.syntaxHighlighterFactory
+                language="Typst"
+                implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateSyntaxHighlighterFactory"/>
+        <editorHighlighterProvider
+                filetype="Typst (Code Mode)"
+                implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+        <lang.syntaxHighlighterFactory
+                language="TypstCode"
+                implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateSyntaxHighlighterFactory"/>
     </extensions>
 </idea-plugin>
