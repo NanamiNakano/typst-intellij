@@ -30,6 +30,9 @@
         <platform.lsp.integrationProvider
                 implementation="dev.thynanami.idea.typst.languageserver.TypstLspServerSupportProvider"/>
         <textmate.bundleProvider implementation="dev.thynanami.idea.typst.TypstTextMateBundleProvider"/>
+        <colorSettingsPage implementation="dev.thynanami.idea.typst.config.TypstColorSettingsPage"/>
+        <additionalTextAttributes scheme="Light" file="colorSchemes/TypstLight.xml"/>
+        <additionalTextAttributes scheme="Dark" file="colorSchemes/TypstDark.xml"/>
         <notificationGroup id="Typst"
                            displayType="BALLOON"/>
         <editorHighlighterProvider

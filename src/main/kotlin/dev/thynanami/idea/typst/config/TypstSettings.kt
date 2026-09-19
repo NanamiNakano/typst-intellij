@@ -15,6 +15,7 @@ class TypstSettings : SerializablePersistentStateComponent<TypstSettings.State>(
         @Property val binarySource: BinarySource = BinarySource.BUNDLED,
         @Property val customBinaryPath: String = "",
         @Property val formatter: TypstFormatter = TypstFormatter.TYPSTYLE,
+        @Property val semanticHighlighting: Boolean = true,
     )
 
     var binarySource: BinarySource
@@ -33,6 +34,12 @@ class TypstSettings : SerializablePersistentStateComponent<TypstSettings.State>(
         get() = state.formatter
         set(value) {
             updateState { it.copy(formatter = value) }
+        }
+
+    var semanticHighlighting: Boolean
+        get() = state.semanticHighlighting
+        set(value) {
+            updateState { it.copy(semanticHighlighting = value) }
         }
 
     companion object {

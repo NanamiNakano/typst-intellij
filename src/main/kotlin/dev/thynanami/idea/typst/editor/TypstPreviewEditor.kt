@@ -64,16 +64,16 @@ class TypstPreviewEditor(project: Project, private val file: VirtualFile) :
   }
 
   private fun startPreview() {
-    previewServer.start().whenComplete { url, error ->
-      if (error != null) {
-        LOG.warn("Could not start preview for ${file.path}", error)
+    previewServer.start(
+      onAddress = { url ->
+        showCard(BROWSER_CARD)
+        browser.loadURL(url)
+      },
+      onFailure = { error ->
+        LOG.warn("Could not start preview for " + file.path, error)
         showCard(FAILED_CARD)
-        return@whenComplete
-      }
-
-      showCard(BROWSER_CARD)
-      browser.loadURL(url)
-    }
+      },
+    )
   }
 
   private fun showCard(name: String) {

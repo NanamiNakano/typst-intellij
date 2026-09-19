@@ -11,6 +11,8 @@ import com.intellij.platform.lsp.api.LspServerNotificationsHandler
 import com.intellij.platform.lsp.api.customization.LspCustomization
 import com.intellij.platform.lsp.api.customization.LspDiagnosticsSupport
 import com.intellij.platform.lsp.api.customization.LspFormattingSupport
+import com.intellij.platform.lsp.api.customization.LspSemanticTokensCustomizer
+import com.intellij.platform.lsp.api.customization.LspSemanticTokensDisabled
 import dev.thynanami.idea.typst.config.TypstSettings
 import dev.thynanami.idea.typst.isTypstFile
 import java.nio.file.Path
@@ -35,6 +37,10 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
 
     override val lspCustomization: LspCustomization = object : LspCustomization() {
         override val diagnosticsCustomizer: LspDiagnosticsSupport = TypstDiagnosticsSupport()
+
+        override val semanticTokensCustomizer: LspSemanticTokensCustomizer =
+            if (TypstSettings.getInstance().semanticHighlighting) TypstSemanticTokensSupport()
+            else LspSemanticTokensDisabled
 
         override val formattingCustomizer: LspFormattingSupport = object : LspFormattingSupport() {
             override fun shouldFormatThisFileExclusivelyByServer(

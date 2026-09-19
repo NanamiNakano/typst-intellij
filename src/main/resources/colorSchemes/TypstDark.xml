@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+    <option name="TYPST_STRONG">
+        <value>
+            <option name="FONT_TYPE" value="1"/>
+        </value>
+    </option>
+    <option name="TYPST_EMPHASIS">
+        <value>
+            <option name="FONT_TYPE" value="2"/>
+        </value>
+    </option>
+    <option name="TYPST_STRONG_EMPHASIS">
+        <value>
+            <option name="FONT_TYPE" value="3"/>
+        </value>
+    </option>
+    <option name="TYPST_VARIABLE">
+        <value>
+            <option name="FOREGROUND" value="c77dbb"/>
+        </value>
+    </option>
+    <option name="TYPST_MATH_VARIABLE">
+        <value>
+            <option name="FOREGROUND" value="c77dbb"/>
+            <option name="FONT_TYPE" value="2"/>
+        </value>
+    </option>
+    <option name="TYPST_MATH">
+        <value>
+            <option name="FONT_TYPE" value="2"/>
+        </value>
+    </option>
+    <option name="TYPST_RAW">
+        <value>
+            <option name="BACKGROUND" value="2b2d30"/>
+        </value>
+    </option>
+</list>

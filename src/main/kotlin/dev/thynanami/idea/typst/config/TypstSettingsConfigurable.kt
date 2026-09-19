@@ -7,6 +7,7 @@ import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.bind
 import com.intellij.ui.dsl.builder.bindItem
+import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.builder.selected
@@ -39,12 +40,9 @@ class TypstSettingsConfigurable : BoundConfigurable("Typst") {
                         TinymistBinary.pathProblem(field.text)?.let { error(it) }
                     }
                     .validationOnApply { field ->
-                        val problem = if (custom.selected()) {
-                            TinymistBinary.pathProblem(field.text)
-                                ?: TinymistBinary.executionProblem(field.text)
+                        if (custom.selected()) {
+                            TinymistBinary.pathProblem(field.text)?.let { error(it) }
                         } else null
-
-                        problem?.let { error(it) }
                     }
             }
         }.bind(settings::binarySource)
@@ -52,12 +50,18 @@ class TypstSettingsConfigurable : BoundConfigurable("Typst") {
         row("Formatter:") {
             comboBox(TypstFormatter.entries).bindItem(settings::formatter.toNullableProperty())
         }
+
+        row {
+            checkBox("Semantic highlighting").bindSelected(settings::semanticHighlighting)
+        }
     }
 
     override fun apply() {
         super.apply()
 
         Notifier.info("Restarting Tinymist server...")
-        ProjectManager.getInstance().openProjects.forEach(TinymistLanguageServer::restart)
+        ProjectManager.getInstance().openProjects.forEach {
+            TinymistLanguageServer.getInstance(it).restart()
+        }
     }
 }
