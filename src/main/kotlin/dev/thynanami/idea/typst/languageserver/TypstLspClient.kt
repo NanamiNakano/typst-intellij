@@ -1,7 +1,5 @@
 package dev.thynanami.idea.typst.languageserver
 
-import dev.thynanami.idea.typst.languageserver.models.Outline
-import dev.thynanami.idea.typst.languageserver.models.SourceJump
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.Editor
@@ -24,10 +22,6 @@ class TypstLspClient(
     private val project: Project,
     serverNotificationsHandler: LspServerNotificationsHandler,
 ) : Lsp4jClient(serverNotificationsHandler) {
-    @JsonNotification("tinymist/documentOutline")
-    fun handleDocumentOutline(outline: Outline) {
-    }
-
     @JsonNotification("tinymist/preview/scrollSource")
     fun handleScrollSource(jump: SourceJump) {
         LOG.info("Preview asked to scroll to " + jump.filepath + " at " + jump.start)

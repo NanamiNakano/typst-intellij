@@ -1,4 +1,4 @@
-package dev.thynanami.idea.typst.languageserver.models
+package dev.thynanami.idea.typst.languageserver
 
 data class SourceJump(
   val filepath: String,
