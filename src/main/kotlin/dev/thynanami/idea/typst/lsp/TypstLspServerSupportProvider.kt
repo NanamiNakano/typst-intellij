@@ -1,4 +1,4 @@
-package dev.thynanami.idea.typst.languageserver
+package dev.thynanami.idea.typst.lsp
 
 import com.intellij.openapi.extensions.PluginAware
 import com.intellij.openapi.extensions.PluginDescriptor

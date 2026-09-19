@@ -1,4 +1,4 @@
-package dev.thynanami.idea.typst.languageserver
+package dev.thynanami.idea.typst.lsp
 
 import com.google.gson.JsonObject
 import com.intellij.execution.configurations.GeneralCommandLine

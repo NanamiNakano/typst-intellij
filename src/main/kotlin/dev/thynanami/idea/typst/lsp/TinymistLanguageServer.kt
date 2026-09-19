@@ -1,4 +1,4 @@
-package dev.thynanami.idea.typst.languageserver
+package dev.thynanami.idea.typst.lsp
 
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.application.EDT

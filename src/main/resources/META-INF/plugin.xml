@@ -28,7 +28,7 @@
                                  instance="dev.thynanami.idea.typst.config.TypstSettingsConfigurable"
                                  displayName="Typst"/>
         <platform.lsp.integrationProvider
-                implementation="dev.thynanami.idea.typst.languageserver.TypstLspServerSupportProvider"/>
+                implementation="dev.thynanami.idea.typst.lsp.TypstLspServerSupportProvider"/>
         <textmate.bundleProvider implementation="dev.thynanami.idea.typst.TypstTextMateBundleProvider"/>
         <colorSettingsPage implementation="dev.thynanami.idea.typst.config.TypstColorSettingsPage"/>
         <additionalTextAttributes scheme="Light" file="colorSchemes/TypstLight.xml"/>

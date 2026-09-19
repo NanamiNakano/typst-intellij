@@ -1,6 +1,6 @@
 package dev.thynanami.idea.typst
 
-import dev.thynanami.idea.typst.languageserver.TinymistLanguageServer
+import dev.thynanami.idea.typst.lsp.TinymistLanguageServer
 import com.google.gson.Gson
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project

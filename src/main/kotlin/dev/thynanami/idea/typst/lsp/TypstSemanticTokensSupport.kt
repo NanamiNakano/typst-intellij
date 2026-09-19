@@ -1,4 +1,4 @@
-package dev.thynanami.idea.typst.languageserver
+package dev.thynanami.idea.typst.lsp
 
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.platform.lsp.api.customization.LspSemanticTokensSupport

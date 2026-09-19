@@ -1,4 +1,4 @@
-package dev.thynanami.idea.typst.languageserver
+package dev.thynanami.idea.typst.lsp
 
 import com.intellij.openapi.util.SystemInfo
 import dev.thynanami.idea.typst.BuildConfig
