@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- Fix math completion responsive issue by loading symbol previews in the background.
 - `tinymist` is now bundled in plugin.
 - Add TextMate grammar.
 - Add support of semantic highlighting

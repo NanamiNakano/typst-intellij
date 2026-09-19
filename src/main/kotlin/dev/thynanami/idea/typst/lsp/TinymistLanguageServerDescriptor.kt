@@ -8,6 +8,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.lsp.api.Lsp4jClient
 import com.intellij.platform.lsp.api.LspClientDescriptor
 import com.intellij.platform.lsp.api.LspServerNotificationsHandler
+import com.intellij.platform.lsp.api.customization.LspCompletionSupport
 import com.intellij.platform.lsp.api.customization.LspCustomization
 import com.intellij.platform.lsp.api.customization.LspDiagnosticsSupport
 import com.intellij.platform.lsp.api.customization.LspFormattingSupport
@@ -36,6 +37,8 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     override fun isSupportedFile(file: VirtualFile): Boolean = file.isTypstFile()
 
     override val lspCustomization: LspCustomization = object : LspCustomization() {
+        override val completionCustomizer: LspCompletionSupport = TypstCompletionSupport()
+
         override val diagnosticsCustomizer: LspDiagnosticsSupport = TypstDiagnosticsSupport()
 
         override val semanticTokensCustomizer: LspSemanticTokensCustomizer =
