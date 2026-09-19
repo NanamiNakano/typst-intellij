@@ -4,7 +4,6 @@ import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.CapturingProcessHandler
 import com.intellij.execution.process.ProcessOutput
-import com.intellij.ide.plugins.cl.PluginAwareClassLoader
 import com.intellij.openapi.util.SystemInfo
 import dev.thynanami.idea.typst.BuildConfig
 import dev.thynanami.idea.typst.config.BinarySource
@@ -24,7 +23,7 @@ object TinymistBinary {
   private val versionProbeTimeout = 5.seconds
   private val versionOutput = Regex("""tinymist\s+\d+\.\d+\.\d+""", RegexOption.IGNORE_CASE)
 
-  fun resolve(): Path = customBinary() ?: bundledBinary()
+  fun resolve(pluginPath: Path): Path = customBinary() ?: bundledBinary(pluginPath)
 
   fun pathProblem(path: String): String? {
     val file = File(path)
@@ -65,9 +64,8 @@ object TinymistBinary {
     return null
   }
 
-  private fun bundledBinary(): Path =
-    (javaClass.classLoader as PluginAwareClassLoader).pluginDescriptor.pluginPath
-      .resolve(BuildConfig.TINYMIST_DIRECTORY)
+  private fun bundledBinary(pluginPath: Path): Path =
+    pluginPath.resolve(BuildConfig.TINYMIST_DIRECTORY)
       .resolve(if (SystemInfo.isWindows) "tinymist.exe" else "tinymist")
       .apply { if (!isExecutable()) setPosixFilePermissions(getPosixFilePermissions() + OWNER_EXECUTE) }
 }
