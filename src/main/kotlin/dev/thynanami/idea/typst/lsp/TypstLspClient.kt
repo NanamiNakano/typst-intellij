@@ -1,6 +1,7 @@
 package dev.thynanami.idea.typst.lsp
 
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.LogicalPosition
@@ -14,6 +15,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.platform.lsp.api.Lsp4jClient
 import com.intellij.platform.lsp.api.LspServerNotificationsHandler
+import dev.thynanami.idea.typst.lsp.outline.TypstOutlineModel
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 
 private val LOG = logger<TypstLspClient>()
@@ -21,7 +23,18 @@ private val LOG = logger<TypstLspClient>()
 class TypstLspClient(
     private val project: Project,
     serverNotificationsHandler: LspServerNotificationsHandler,
+    private val descriptor: TinymistLanguageServerDescriptor,
 ) : Lsp4jClient(serverNotificationsHandler) {
+    @JsonNotification("tinymist/documentOutline")
+    fun handleDocumentOutline(outline: DocumentOutline) {
+        if (!project.isDisposed) project.service<TypstOutlineModel>().update(outline)
+    }
+
+    @JsonNotification("tinymist/preview/dispose")
+    fun handlePreviewDisposed(disposed: PreviewDisposed) {
+        descriptor.previewDisposed(disposed.taskId)
+    }
+
     @JsonNotification("tinymist/preview/scrollSource")
     fun handleScrollSource(jump: SourceJump) {
         LOG.info("Preview asked to scroll to " + jump.filepath + " at " + jump.start)

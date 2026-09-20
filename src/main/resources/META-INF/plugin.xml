@@ -11,6 +11,10 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <fileEditorProvider implementation="dev.thynanami.idea.typst.editor.TypstEditorProvider"/>
+        <toolWindow id="Typst Outline"
+                    anchor="right"
+                    icon="/icons/typstFiletypeIcon.svg"
+                    factoryClass="dev.thynanami.idea.typst.lsp.outline.TypstOutlineToolWindowFactory"/>
         <fileType
                 name="Typst"
                 implementationClass="dev.thynanami.idea.typst.TypstFileType"

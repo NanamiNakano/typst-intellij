@@ -3,7 +3,6 @@ package dev.thynanami.idea.typst.lsp
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.platform.lsp.api.LspClient
 import com.intellij.platform.lsp.api.LspClientManager
@@ -46,8 +45,4 @@ class TinymistLanguageServer(private val project: Project, private val scope: Co
     fun running(): LspClient? = LspClientManager.getInstance(project)
         .getClients(providerClass)
         .firstOrNull { it.state == LspServerState.Running }
-
-    companion object {
-        fun getInstance(project: Project): TinymistLanguageServer = project.service()
-    }
 }

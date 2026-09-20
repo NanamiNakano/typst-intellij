@@ -286,6 +286,8 @@ tasks {
     }
 
     runIde {
+        // Avoid the coroutine agent's SIGTRAP dump loop with in-process JCEF.
+        coroutinesJavaAgentFile.unset()
         jvmArgumentProviders += CommandLineArgumentProvider {
             listOf(
                 "-Djcef.remote.enabled=false",

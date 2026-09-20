@@ -1,6 +1,5 @@
 package dev.thynanami.idea.typst.editor
 
-import dev.thynanami.idea.typst.TinymistPreviewServer
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileEditor
@@ -10,6 +9,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.jcef.JBCefBrowser
+import dev.thynanami.idea.typst.lsp.TinymistPreviewServer
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
 import org.cef.handler.CefLoadHandler
@@ -17,19 +17,29 @@ import org.cef.handler.CefLoadHandlerAdapter
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.beans.PropertyChangeListener
+import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingConstants
 
 private val LOG = logger<TypstPreviewEditor>()
+private const val LOADING_CARD = "loading"
+private const val BROWSER_CARD = "browser"
+private const val FAILED_CARD = "failed"
+private const val STOPPED_CARD = "stopped"
 
-class TypstPreviewEditor(project: Project, private val file: VirtualFile) :
+private fun onEdt(action: () -> Unit) {
+  val application = ApplicationManager.getApplication()
+  if (application.isDispatchThread) action() else application.invokeLater(action)
+}
+
+class TypstPreviewEditor(private val project: Project, private val file: VirtualFile) :
   UserDataHolderBase(), FileEditor {
-  private val previewServer = TinymistPreviewServer(project, file.path)
-  private val browser = JBCefBrowser.createBuilder()
-    .setOffScreenRendering(false)
-    .build()
+  private class Attempt(val server: TinymistPreviewServer, val browser: JBCefBrowser)
+
+  // Browser ownership and all browser operations are confined to the EDT.
+  private var attempt: Attempt? = null
   private val cards = JPanel(CardLayout())
   private val panel = JPanel(BorderLayout()).apply {
     add(cards, BorderLayout.CENTER)
@@ -40,15 +50,12 @@ class TypstPreviewEditor(project: Project, private val file: VirtualFile) :
 
   init {
     cards.add(messagePanel("Loading preview..."), LOADING_CARD)
-    cards.add(browser.component, BROWSER_CARD)
-    cards.add(messagePanel("Failed to load preview"), FAILED_CARD)
-    showCard(LOADING_CARD)
-
-    browser.jbCefClient.addLoadHandler(loadFailureHandler(), browser.cefBrowser)
-    startPreview()
+    cards.add(messagePanel("Failed to load preview", restart = true), FAILED_CARD)
+    cards.add(messagePanel("Preview stopped", restart = true), STOPPED_CARD)
+    onEdt { startPreview() }
   }
 
-  private fun loadFailureHandler() = object : CefLoadHandlerAdapter() {
+  private inner class LoadFailureHandler(private val current: Attempt) : CefLoadHandlerAdapter() {
     override fun onLoadError(
       browser: CefBrowser?,
       frame: CefFrame?,
@@ -58,33 +65,90 @@ class TypstPreviewEditor(project: Project, private val file: VirtualFile) :
     ) {
       if (frame?.isMain != true) return
 
-      LOG.warn("Tinymist preview failed to load $failedUrl: $errorCode $errorText")
-      showCard(FAILED_CARD)
+      onEdt {
+        if (!isCurrent(current) || !current.server.isActive) return@onEdt
+        LOG.warn("Tinymist preview failed to load $failedUrl: $errorCode $errorText")
+        current.server.stop()
+        release(current)
+        showCard(FAILED_CARD)
+      }
     }
   }
 
   private fun startPreview() {
-    previewServer.start(
+    if (disposed || project.isDisposed) return
+    if (attempt?.server?.isActive == true) return
+    attempt?.let { current ->
+      current.server.stop()
+      release(current)
+    }
+    showCard(LOADING_CARD)
+
+    val browser = try {
+      JBCefBrowser.createBuilder().setOffScreenRendering(false).build()
+    } catch (error: Exception) {
+      LOG.warn("Could not create preview browser for " + file.path, error)
+      showCard(FAILED_CARD)
+      return
+    }
+    val current = Attempt(TinymistPreviewServer(project, file.path), browser)
+    attempt = current
+    cards.add(browser.component, BROWSER_CARD)
+    browser.jbCefClient.addLoadHandler(LoadFailureHandler(current), browser.cefBrowser)
+    current.server.start(
       onAddress = { url ->
-        showCard(BROWSER_CARD)
-        browser.loadURL(url)
+        onEdt {
+          if (!isCurrent(current) || !current.server.isActive) return@onEdt
+          showCard(BROWSER_CARD)
+          browser.loadURL(url)
+        }
       },
       onFailure = { error ->
-        LOG.warn("Could not start preview for " + file.path, error)
-        showCard(FAILED_CARD)
+        onEdt {
+          if (!isCurrent(current)) return@onEdt
+          LOG.warn("Could not start preview for " + file.path, error)
+          release(current)
+          showCard(FAILED_CARD)
+        }
+      },
+      onDisposed = {
+        onEdt {
+          if (!isCurrent(current)) return@onEdt
+          release(current)
+          showCard(STOPPED_CARD)
+        }
       },
     )
   }
 
+  private fun isCurrent(current: Attempt): Boolean =
+    !disposed && !project.isDisposed && attempt === current
+
+  private fun release(current: Attempt) {
+    if (attempt !== current) return
+    attempt = null
+    cards.remove(current.browser.component)
+    current.browser.dispose()
+    cards.revalidate()
+    cards.repaint()
+  }
+
   private fun showCard(name: String) {
-    ApplicationManager.getApplication().invokeLater {
-      if (!disposed) (cards.layout as CardLayout).show(cards, name)
+    (cards.layout as CardLayout).show(cards, name)
+  }
+
+  private fun messagePanel(message: String, restart: Boolean = false) = JPanel(BorderLayout()).apply {
+    add(JLabel(message, SwingConstants.CENTER), BorderLayout.CENTER)
+    if (restart) {
+      add(JPanel().apply {
+        add(JButton("Restart").apply { addActionListener { startPreview() } })
+      }, BorderLayout.SOUTH)
     }
   }
 
   override fun getComponent(): JComponent = panel
 
-  override fun getPreferredFocusedComponent(): JComponent = browser.component
+  override fun getPreferredFocusedComponent(): JComponent = attempt?.browser?.component ?: panel
 
   override fun getName(): String = "Preview"
 
@@ -102,19 +166,13 @@ class TypstPreviewEditor(project: Project, private val file: VirtualFile) :
 
   override fun dispose() {
     disposed = true
-    previewServer.stop()
-    browser.dispose()
+    onEdt {
+      attempt?.let { current ->
+        current.server.stop()
+        release(current)
+      }
+    }
   }
 
   override fun getFile(): VirtualFile = file
-
-  private companion object {
-    const val LOADING_CARD = "loading"
-    const val BROWSER_CARD = "browser"
-    const val FAILED_CARD = "failed"
-
-    fun messagePanel(message: String) = JPanel(BorderLayout()).apply {
-      add(JLabel(message, SwingConstants.CENTER), BorderLayout.CENTER)
-    }
-  }
 }

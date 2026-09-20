@@ -1,5 +1,6 @@
 package dev.thynanami.idea.typst.config
 
+import com.intellij.openapi.components.service
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.project.ProjectManager
@@ -61,7 +62,7 @@ class TypstSettingsConfigurable : BoundConfigurable("Typst") {
 
         Notifier.info("Restarting Tinymist server...")
         ProjectManager.getInstance().openProjects.forEach {
-            TinymistLanguageServer.getInstance(it).restart()
+            it.service<TinymistLanguageServer>().restart()
         }
     }
 }
