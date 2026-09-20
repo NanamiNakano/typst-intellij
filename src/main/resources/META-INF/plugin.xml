@@ -6,6 +6,7 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lsp</depends>
+    <depends>com.intellij.modules.externalSystem</depends>
     <depends>com.intellij.modules.jcef</depends>
     <depends>org.jetbrains.plugins.textmate</depends>
     <depends optional="true" config-file="typst-grazie.xml">tanvd.grazi</depends>
@@ -36,6 +37,12 @@
                                  parentId="language"
                                  instance="dev.thynanami.idea.typst.config.TypstSettingsConfigurable"
                                  displayName="Typst"/>
+        <projectConfigurable id="dev.thynanami.idea.typst.typm.settings"
+                             parentId="dev.thynanami.idea.typst.settings"
+                             instance="dev.thynanami.idea.typst.typm.TypmSettingsConfigurable"
+                             displayName="Typm"
+                             nonDefaultProject="true"/>
+        <postStartupActivity implementation="dev.thynanami.idea.typst.typm.TypmProjectActivity"/>
         <platform.lsp.integrationProvider
                 implementation="dev.thynanami.idea.typst.lsp.TypstLspServerSupportProvider"/>
         <textmate.bundleProvider implementation="dev.thynanami.idea.typst.TypstTextMateBundleProvider"/>

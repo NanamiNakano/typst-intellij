@@ -1,3 +1,7 @@
+## [Unreleased]
+
+- Add supports of [typm](https://github.com/NanamiNakano/typm)
+
 ## [0.0.8]
 
 - Fix math completion responsive issue by loading symbol previews in the background.

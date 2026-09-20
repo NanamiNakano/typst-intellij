@@ -19,6 +19,7 @@ import com.intellij.platform.lsp.api.customization.LspSemanticTokensCustomizer
 import com.intellij.platform.lsp.api.customization.LspSemanticTokensDisabled
 import dev.thynanami.idea.typst.config.TypstSettings
 import dev.thynanami.idea.typst.isTypstFile
+import dev.thynanami.idea.typst.typm.TypmProjectLayout
 import kotlinx.coroutines.CancellationException
 import java.nio.file.Path
 
@@ -94,7 +95,7 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     }
 
     override fun createCommandLine(): GeneralCommandLine =
-        GeneralCommandLine(languageServerPath.toString())
+        TypmProjectLayout(project.basePath).applyEnvironment(GeneralCommandLine(languageServerPath.toString()))
 
     override fun isSupportedFile(file: VirtualFile): Boolean = file.isTypstFile()
 

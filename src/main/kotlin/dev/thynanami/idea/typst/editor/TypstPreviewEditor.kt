@@ -121,6 +121,15 @@ class TypstPreviewEditor(private val project: Project, private val file: Virtual
     )
   }
 
+  fun restartPreview() = onEdt {
+    if (disposed || project.isDisposed) return@onEdt
+    attempt?.let { current ->
+      current.server.stop()
+      release(current)
+    }
+    startPreview()
+  }
+
   private fun isCurrent(current: Attempt): Boolean =
     !disposed && !project.isDisposed && attempt === current
 
