@@ -1,0 +1,18 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <spellchecker.support language="Typst"
+                              implementationClass="dev.thynanami.idea.typst.grazie.TypstSpellcheckingStrategy"/>
+        <spellchecker.support language="TypstCode"
+                              implementationClass="dev.thynanami.idea.typst.grazie.TypstSpellcheckingStrategy"/>
+    </extensions>
+    <extensions defaultExtensionNs="com.intellij.grazie">
+        <textExtractor language="Typst"
+                       implementationClass="dev.thynanami.idea.typst.grazie.TypstTextExtractor"/>
+        <textExtractor language="TypstCode"
+                       implementationClass="dev.thynanami.idea.typst.grazie.TypstTextExtractor"/>
+        <problemFilter language="Typst"
+                       implementationClass="dev.thynanami.idea.typst.grazie.TypstSpellingProblemFilter"/>
+        <problemFilter language="TypstCode"
+                       implementationClass="dev.thynanami.idea.typst.grazie.TypstSpellingProblemFilter"/>
+    </extensions>
+</idea-plugin>

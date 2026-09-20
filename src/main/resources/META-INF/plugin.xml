@@ -8,8 +8,13 @@
     <depends>com.intellij.modules.lsp</depends>
     <depends>com.intellij.modules.jcef</depends>
     <depends>org.jetbrains.plugins.textmate</depends>
+    <depends optional="true" config-file="typst-grazie.xml">tanvd.grazi</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <lang.parserDefinition language="Typst"
+                               implementationClass="dev.thynanami.idea.typst.psi.TypstParserDefinition"/>
+        <lang.parserDefinition language="TypstCode"
+                               implementationClass="dev.thynanami.idea.typst.psi.TypstCodeParserDefinition"/>
         <fileEditorProvider implementation="dev.thynanami.idea.typst.editor.TypstEditorProvider"/>
         <toolWindow id="Typst Outline"
                     anchor="right"

@@ -4,6 +4,7 @@
 - `tinymist` is now bundled in plugin.
 - Add TextMate grammar.
 - Add support of semantic highlighting
+- Enable IntelliJ spell checking
 
 ## [0.0.7]
 
