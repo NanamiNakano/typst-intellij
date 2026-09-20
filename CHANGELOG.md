@@ -1,4 +1,4 @@
-## [Unreleased]
+## [0.0.8]
 
 - Fix math completion responsive issue by loading symbol previews in the background.
 - `tinymist` is now bundled in plugin.

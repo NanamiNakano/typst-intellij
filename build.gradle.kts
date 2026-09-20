@@ -146,7 +146,7 @@ val textMateBundle = tasks.register("textMateBundle") {
                 val language = languagesById.getValue(languageId)
                 val configuration = language.getValue("configuration").toString()
                 val grammarName = File(grammar.getValue("path").toString()).name
-                val extensions = (language.getValue("extensions") as List<Any>)
+                val extensions = (language.getValue("extensions") as List<*>)
                     .map { it.toString().removePrefix(".") }
                 val bundle = bundleRoot.get().dir(languageId).apply { asFile.mkdirs() }
 
