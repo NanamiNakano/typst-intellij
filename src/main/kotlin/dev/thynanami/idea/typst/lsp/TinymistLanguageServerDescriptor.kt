@@ -12,6 +12,7 @@ import com.intellij.platform.lsp.api.Lsp4jClient
 import com.intellij.platform.lsp.api.LspClientDescriptor
 import com.intellij.platform.lsp.api.LspServerListener
 import com.intellij.platform.lsp.api.LspServerNotificationsHandler
+import com.intellij.platform.lsp.api.customization.LspCodeLensSupport
 import com.intellij.platform.lsp.api.customization.LspCompletionSupport
 import com.intellij.platform.lsp.api.customization.LspCustomization
 import com.intellij.platform.lsp.api.customization.LspDiagnosticsSupport
@@ -25,6 +26,7 @@ import dev.thynanami.idea.typst.config.TypstSettings
 import dev.thynanami.idea.typst.isTypstFile
 import dev.thynanami.idea.typst.typm.TypmProjectLayout
 import kotlinx.coroutines.CancellationException
+import org.eclipse.lsp4j.CodeLens
 import org.eclipse.lsp4j.InitializeResult
 import java.nio.file.Path
 
@@ -119,6 +121,8 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
 }
 
 private class TinymistLspCustomization : LspCustomization() {
+    override val codeLensCustomizer: LspCodeLensSupport = TinymistCodeLensSupport()
+
     override val completionCustomizer: LspCompletionSupport = TypstCompletionSupport()
 
     override val diagnosticsCustomizer: LspDiagnosticsSupport = TypstDiagnosticsSupport()
@@ -130,6 +134,11 @@ private class TinymistLspCustomization : LspCustomization() {
         else LspSemanticTokensDisabled
 
     override val formattingCustomizer: LspFormattingSupport = TinymistFormattingSupport()
+}
+
+private class TinymistCodeLensSupport : LspCodeLensSupport() {
+    override fun shouldDisplayCodeLens(file: VirtualFile, codeLens: CodeLens): Boolean =
+        codeLens.command?.command != "tinymist.exportPdf"
 }
 
 private class TypstDocumentHighlightsSupport : LspDocumentHighlightsSupport() {

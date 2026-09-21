@@ -17,6 +17,13 @@
         <lang.parserDefinition language="TypstCode"
                                implementationClass="dev.thynanami.idea.typst.psi.TypstCodeParserDefinition"/>
         <fileEditorProvider implementation="dev.thynanami.idea.typst.editor.TypstEditorProvider"/>
+        <configurationType implementation="dev.thynanami.idea.typst.run.TypstRunConfigurationType"/>
+        <runConfigurationProducer id="typst.compile"
+                                  implementation="dev.thynanami.idea.typst.run.TypstCompileConfigurationProducer"/>
+        <runConfigurationProducer order="after typst.compile"
+                                  implementation="dev.thynanami.idea.typst.run.TypstWatchConfigurationProducer"/>
+        <runLineMarkerContributor language="Typst"
+                                  implementationClass="dev.thynanami.idea.typst.run.TypstRunLineMarkerContributor"/>
         <typedHandler implementation="dev.thynanami.idea.typst.editor.TypstTypedHandler" order="first"/>
         <backspaceHandlerDelegate implementation="dev.thynanami.idea.typst.editor.TypstBackspaceHandler" order="first"/>
         <enterHandlerDelegate implementation="dev.thynanami.idea.typst.editor.TypstEnterHandler" order="first"/>
