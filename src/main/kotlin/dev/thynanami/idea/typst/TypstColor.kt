@@ -23,7 +23,7 @@ enum class TypstColor(private val displayName: String, inheritedFrom: TextAttrib
     BOOLEAN("Code//Boolean", DefaultLanguageHighlighterColors.KEYWORD),
     OPERATOR("Code//Operator", DefaultLanguageHighlighterColors.OPERATION_SIGN),
     PUNCTUATION("Code//Punctuation", DefaultLanguageHighlighterColors.BRACES),
-    HEADING("Markup//Heading", DefaultLanguageHighlighterColors.MARKUP_TAG),
+    HEADING("Markup//Heading", DefaultLanguageHighlighterColors.CONSTANT),
     STRONG("Markup//Strong"),
     EMPHASIS("Markup//Emphasis"),
     STRONG_EMPHASIS("Markup//Strong emphasis"),
