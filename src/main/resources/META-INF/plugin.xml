@@ -17,6 +17,9 @@
         <lang.parserDefinition language="TypstCode"
                                implementationClass="dev.thynanami.idea.typst.psi.TypstCodeParserDefinition"/>
         <fileEditorProvider implementation="dev.thynanami.idea.typst.editor.TypstEditorProvider"/>
+        <typedHandler implementation="dev.thynanami.idea.typst.editor.TypstTypedHandler" order="first"/>
+        <backspaceHandlerDelegate implementation="dev.thynanami.idea.typst.editor.TypstBackspaceHandler" order="first"/>
+        <enterHandlerDelegate implementation="dev.thynanami.idea.typst.editor.TypstEnterHandler" order="first"/>
         <toolWindow id="Typst Outline"
                     anchor="right"
                     icon="/icons/typstFiletypeIcon.svg"
