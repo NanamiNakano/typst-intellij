@@ -15,9 +15,12 @@ import com.intellij.platform.lsp.api.LspServerNotificationsHandler
 import com.intellij.platform.lsp.api.customization.LspCompletionSupport
 import com.intellij.platform.lsp.api.customization.LspCustomization
 import com.intellij.platform.lsp.api.customization.LspDiagnosticsSupport
+import com.intellij.platform.lsp.api.customization.LspDocumentHighlightsSupport
 import com.intellij.platform.lsp.api.customization.LspFormattingSupport
 import com.intellij.platform.lsp.api.customization.LspSemanticTokensCustomizer
 import com.intellij.platform.lsp.api.customization.LspSemanticTokensDisabled
+import com.intellij.psi.PsiFile
+import dev.thynanami.idea.typst.TypstFileTypeBase
 import dev.thynanami.idea.typst.config.TypstSettings
 import dev.thynanami.idea.typst.isTypstFile
 import dev.thynanami.idea.typst.typm.TypmProjectLayout
@@ -120,11 +123,18 @@ private class TinymistLspCustomization : LspCustomization() {
 
     override val diagnosticsCustomizer: LspDiagnosticsSupport = TypstDiagnosticsSupport()
 
+    override val documentHighlightsCustomizer: LspDocumentHighlightsSupport = TypstDocumentHighlightsSupport()
+
     override val semanticTokensCustomizer: LspSemanticTokensCustomizer =
         if (TypstSettings.getInstance().semanticHighlighting) TypstSemanticTokensSupport()
         else LspSemanticTokensDisabled
 
     override val formattingCustomizer: LspFormattingSupport = TinymistFormattingSupport()
+}
+
+private class TypstDocumentHighlightsSupport : LspDocumentHighlightsSupport() {
+    override fun shouldAskServerForDocumentHighlights(psiFile: PsiFile): Boolean =
+        psiFile.fileType is TypstFileTypeBase
 }
 
 private class TinymistFormattingSupport : LspFormattingSupport() {

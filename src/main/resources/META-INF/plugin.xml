@@ -48,6 +48,11 @@
         <postStartupActivity implementation="dev.thynanami.idea.typst.typm.TypmProjectActivity"/>
         <platform.lsp.integrationProvider
                 implementation="dev.thynanami.idea.typst.lsp.TypstLspServerSupportProvider"/>
+        <psi.implicitReferenceProvider implementation="dev.thynanami.idea.typst.lsp.TypstLspSymbolProvider"
+                                       order="last"/>
+        <psi.declarationProvider implementation="dev.thynanami.idea.typst.lsp.TypstLspSymbolProvider"/>
+        <searcher forClass="com.intellij.find.usages.api.UsageSearchParameters"
+                  implementationClass="dev.thynanami.idea.typst.lsp.TypstLspUsageSearcher"/>
         <textmate.bundleProvider implementation="dev.thynanami.idea.typst.TypstTextMateBundleProvider"/>
         <colorSettingsPage implementation="dev.thynanami.idea.typst.config.TypstColorSettingsPage"/>
         <langCodeStyleSettingsProvider implementation="dev.thynanami.idea.typst.config.TypstCodeStyleSettingsProvider"/>
