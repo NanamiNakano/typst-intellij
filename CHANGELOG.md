@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 - Continuation on list and closing
+- Code style settings
 
 ## [0.0.9]
 

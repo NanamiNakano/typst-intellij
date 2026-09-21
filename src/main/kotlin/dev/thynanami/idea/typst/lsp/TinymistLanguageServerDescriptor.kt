@@ -1,6 +1,7 @@
 package dev.thynanami.idea.typst.lsp
 
 import com.google.gson.JsonObject
+import com.intellij.application.options.CodeStyle
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.BaseProjectDirectories.Companion.getBaseDirectories
@@ -21,6 +22,7 @@ import dev.thynanami.idea.typst.config.TypstSettings
 import dev.thynanami.idea.typst.isTypstFile
 import dev.thynanami.idea.typst.typm.TypmProjectLayout
 import kotlinx.coroutines.CancellationException
+import org.eclipse.lsp4j.InitializeResult
 import java.nio.file.Path
 
 class TinymistLanguageServerDescriptor(private val languageServerPath: Path, project: Project) :
@@ -83,6 +85,10 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     override val lspServerListener: LspServerListener = PreviewListener()
 
     private inner class PreviewListener : LspServerListener {
+        override fun serverInitialized(params: InitializeResult) {
+            synchronizeTinymistCodeStyle(project)
+        }
+
         override fun serverStopped(shutdownNormally: Boolean) {
             val removed = synchronized(previews) {
                 stopped = true
@@ -101,8 +107,10 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
 
     override val lspCustomization: LspCustomization = TinymistLspCustomization()
 
-    override fun createInitializationOptions(): JsonObject = JsonObject().apply {
-        addProperty("formatterMode", TypstSettings.getInstance().formatter.toString())
+    override fun createInitializationOptions(): JsonObject = tinymistFormattingOptions(
+        CodeStyle.getSettings(project),
+        TypstSettings.getInstance().formatter,
+    ).toJson().apply {
         addProperty("customizedShowDocument", true)
     }
 }

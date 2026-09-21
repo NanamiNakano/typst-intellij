@@ -50,6 +50,7 @@
                 implementation="dev.thynanami.idea.typst.lsp.TypstLspServerSupportProvider"/>
         <textmate.bundleProvider implementation="dev.thynanami.idea.typst.TypstTextMateBundleProvider"/>
         <colorSettingsPage implementation="dev.thynanami.idea.typst.config.TypstColorSettingsPage"/>
+        <langCodeStyleSettingsProvider implementation="dev.thynanami.idea.typst.config.TypstCodeStyleSettingsProvider"/>
         <additionalTextAttributes scheme="Light" file="colorSchemes/TypstLight.xml"/>
         <additionalTextAttributes scheme="Dark" file="colorSchemes/TypstDark.xml"/>
         <notificationGroup id="Typst"
@@ -67,4 +68,13 @@
                 language="TypstCode"
                 implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateSyntaxHighlighterFactory"/>
     </extensions>
+
+    <applicationListeners>
+        <listener class="dev.thynanami.idea.typst.lsp.TypstCodeStyleSettingsListener"
+                  topic="com.intellij.psi.codeStyle.CodeStyleSettingsListener"/>
+    </applicationListeners>
+    <projectListeners>
+        <listener class="dev.thynanami.idea.typst.lsp.TypstCodeStyleSettingsListener"
+                  topic="com.intellij.psi.codeStyle.CodeStyleSettingsListener"/>
+    </projectListeners>
 </idea-plugin>
