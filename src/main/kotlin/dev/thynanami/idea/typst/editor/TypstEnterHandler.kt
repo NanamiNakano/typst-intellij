@@ -32,6 +32,7 @@ class TypstEnterHandler : EnterHandlerDelegate {
 
         val offset = caretOffset.get()
         return if (editor.typstCommentEnter(offset) || editor.enterPair(file, offset) || editor.typstListEnter(file, offset)) {
+            caretOffset.set(editor.caretModel.offset)
             EnterHandlerDelegate.Result.Stop
         } else {
             EnterHandlerDelegate.Result.Continue
