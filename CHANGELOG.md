@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [0.1.0]
+
+All major feature is implemented.
+
+- Usage and declaration support
+- Fix continuation
+
 ## [0.0.10]
 
 - Continuation on list and closing
