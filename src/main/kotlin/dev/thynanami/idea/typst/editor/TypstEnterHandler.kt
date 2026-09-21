@@ -12,6 +12,7 @@ import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 import com.intellij.openapi.editor.actions.SplitLineAction
 import com.intellij.openapi.util.Ref
 import com.intellij.psi.PsiFile
+import com.intellij.util.text.CharArrayUtil
 import dev.thynanami.idea.typst.TypstFileTypeBase
 
 class TypstEnterHandler : EnterHandlerDelegate {
@@ -40,8 +41,8 @@ class TypstEnterHandler : EnterHandlerDelegate {
 
 private fun Editor.enterPair(file: PsiFile, offset: Int): Boolean {
     val text = document.charsSequence
-    var left = offset - 1
-    while (left >= 0 && text[left].isWhitespace()) left--
+    // Expand only same-line pairs; preserve normal Enter behavior in existing multiline pairs.
+    val left = CharArrayUtil.shiftBackward(text, offset - 1, " \t")
     if (left < 0) return false
     val opening = text[left]
     val closing = when (opening) {
@@ -68,8 +69,7 @@ private fun Editor.enterPair(file: PsiFile, offset: Int): Boolean {
     } else {
         " ".repeat(width)
     }
-    var right = offset
-    while (right < text.length && text[right].isWhitespace()) right++
+    val right = CharArrayUtil.shiftForward(text, offset, " \t")
     val rightScopes = typstScopeAt(right).typstScopeNames().toList()
     val isPair = right < text.length && text[right] == closing &&
         rightScopes.none { it.startsWith("string.") || it.startsWith("comment.") || it.startsWith("markup.raw.") } &&
@@ -77,17 +77,11 @@ private fun Editor.enterPair(file: PsiFile, offset: Int): Boolean {
             generateSequence(typstScopeAt(left)) { it.parent }.firstOrNull { it.scopeName == "markup.math.typst" } ===
             generateSequence(typstScopeAt(right)) { it.parent }.firstOrNull { it.scopeName == "markup.math.typst" })
     if (isPair) {
-        // Retain existing empty lines, adding one editable line when the pair is already multiline.
-        val caretLine = text.subSequence(left + 1, offset).count { it == '\n' }
-        val emptyLines = maxOf(text.subSequence(left + 1, right).count { it == '\n' }, caretLine + 1)
-        val replacement = "\n" + List(emptyLines) { innerIndent }.joinToString("\n") + "\n" + baseIndent
-        typstEnterEdit(left + 1, right, replacement, 1 + caretLine * (innerIndent.length + 1) + innerIndent.length)
+        typstEnterEdit(left + 1, right, "\n$innerIndent\n$baseIndent", 1 + innerIndent.length)
         return true
     }
-    if (opening == '$' || document.getLineNumber(left) != document.getLineNumber(offset)) return false
-    var end = offset
-    while (end < text.length && (text[end] == ' ' || text[end] == '\t')) end++
-    typstEnterEdit(offset, end, "\n$innerIndent")
+    if (opening == '$') return false
+    typstEnterEdit(offset, right, "\n$innerIndent")
     return true
 }
 

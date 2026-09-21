@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Continuation on list and closing
+
 ## [0.0.9]
 
 - Add supports of [typm](https://github.com/NanamiNakano/typm)
