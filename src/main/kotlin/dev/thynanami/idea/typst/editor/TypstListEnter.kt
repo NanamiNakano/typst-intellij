@@ -29,8 +29,10 @@ internal fun Editor.typstListEnter(file: PsiFile, offset: Int): Boolean {
         val parent = lines.owner(item, item.start)
         val replacement = parent?.let { "${it.indent}$marker " } ?: item.indent
         typstEnterEdit(item.start, item.end, replacement)
-    } else if (line !== item && offset == line.start + line.indent.length) {
-        // At the beginning of a continuation, Enter promotes its text (or the empty line) to a sibling.
+    } else if (line !== item && offset == line.start + line.indent.length &&
+        (line.text.isBlank() || line.number > 0 && lines[line.number - 1].text.isBlank())
+    ) {
+        // Nonempty continuations need a paragraph break before promotion; empty ones promote immediately.
         val nextMarker = if (marker.endsWith('.')) "${marker.dropLast(1).toBigInteger() + java.math.BigInteger.ONE}." else marker
         val separator = if (lines.isLoose(item) && line.number > 0 && lines[line.number - 1].text.isNotBlank()) "\n" else ""
         typstEnterEdit(line.start, offset, "$separator${item.indent}$nextMarker ")
