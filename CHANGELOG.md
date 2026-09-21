@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.0.10]
+
 - Continuation on list and closing
 - Code style settings
 
