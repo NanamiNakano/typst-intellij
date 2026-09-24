@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.1.1]
+
 - Fix unexpected navigation in preview panel
 - Add support of project root in run configurations
 - Add support of tinymist status indicator
