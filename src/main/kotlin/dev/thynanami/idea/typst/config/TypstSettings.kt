@@ -16,6 +16,8 @@ class TypstSettings : SerializablePersistentStateComponent<TypstSettings.State>(
         @Property val customBinaryPath: String = "",
         @Property val formatter: TypstFormatter = TypstFormatter.TYPSTYLE,
         @Property val semanticHighlighting: Boolean = true,
+        @Property val scrollSync: Boolean = true,
+        @Property val scrollSyncOnKeyboard: Boolean = false,
     )
 
     var binarySource: BinarySource
@@ -40,6 +42,18 @@ class TypstSettings : SerializablePersistentStateComponent<TypstSettings.State>(
         get() = state.semanticHighlighting
         set(value) {
             updateState { it.copy(semanticHighlighting = value) }
+        }
+
+    var scrollSync: Boolean
+        get() = state.scrollSync
+        set(value) {
+            updateState { it.copy(scrollSync = value) }
+        }
+
+    var scrollSyncOnKeyboard: Boolean
+        get() = state.scrollSyncOnKeyboard
+        set(value) {
+            updateState { it.copy(scrollSyncOnKeyboard = value) }
         }
 
     companion object {

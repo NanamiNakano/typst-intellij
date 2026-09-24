@@ -5,7 +5,9 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.DialogPanel
+import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.Cell
 import com.intellij.ui.dsl.builder.bind
 import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.bindSelected
@@ -18,7 +20,7 @@ import dev.thynanami.idea.typst.lsp.TinymistBinary
 import dev.thynanami.idea.typst.Notifier
 
 class TypstSettingsConfigurable : BoundConfigurable("Typst") {
-    private val settings = TypstSettings.getInstance()
+    private val settings = service<TypstSettings>()
 
     override fun createPanel(): DialogPanel = panel {
         buttonsGroup("Tinymist binary:") {
@@ -55,10 +57,26 @@ class TypstSettingsConfigurable : BoundConfigurable("Typst") {
         row {
             checkBox("Semantic highlighting").bindSelected(settings::semanticHighlighting)
         }
+
+        lateinit var scrollSync: Cell<JBCheckBox>
+        row {
+            scrollSync = checkBox("Scroll preview to cursor").bindSelected(settings::scrollSync)
+        }
+        indent {
+            buttonsGroup {
+                row { radioButton("Mouse only", false) }
+                row { radioButton("Mouse and keyboard", true) }
+            }.bind(settings::scrollSyncOnKeyboard)
+        }.enabledIf(scrollSync.selected)
     }
 
     override fun apply() {
+        val previous = settings.state
         super.apply()
+        if (settings.state.copy(
+                scrollSync = previous.scrollSync,
+                scrollSyncOnKeyboard = previous.scrollSyncOnKeyboard,
+            ) == previous) return
 
         Notifier.info("Restarting Tinymist server...")
         ProjectManager.getInstance().openProjects.forEach {

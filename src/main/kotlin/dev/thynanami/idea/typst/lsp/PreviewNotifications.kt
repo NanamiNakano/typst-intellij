@@ -23,6 +23,9 @@ data class PreviewScrollRequest(
     val event: String,
     val span: String? = null,
     val position: DocumentPosition? = null,
+    val filepath: String? = null,
+    val line: Int? = null,
+    val character: Int? = null,
 )
 
 fun OutlineItem.scrollRequests(): List<PreviewScrollRequest> = buildList {

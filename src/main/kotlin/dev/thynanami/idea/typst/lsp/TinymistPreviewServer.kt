@@ -104,6 +104,28 @@ class TinymistPreviewServer(private val project: Project, private val filepath: 
     }
   }
 
+  fun scrollToSource(sourceFilepath: String, line: Int, character: Int): Boolean {
+    if (state != State.RUNNING || project.isDisposed) return false
+    val server = owner ?: return false
+    val request = PreviewScrollRequest(
+      event = "panelScrollTo",
+      filepath = sourceFilepath,
+      line = line,
+      character = character,
+    )
+    val job = project.service<TinymistLanguageServer>().launch {
+      if (state != State.RUNNING || project.isDisposed) return@launch
+      try {
+        server.execute(SCROLL_PREVIEW_COMMAND, taskId, request)
+      } catch (error: CancellationException) {
+        throw error
+      } catch (error: Exception) {
+        LOG.debug("Could not scroll Tinymist preview task $taskId", error)
+      }
+    }
+    return !job.isCancelled
+  }
+
   fun stop() {
     val shouldKill = synchronized(this) {
       val wasRunning = state == State.RUNNING

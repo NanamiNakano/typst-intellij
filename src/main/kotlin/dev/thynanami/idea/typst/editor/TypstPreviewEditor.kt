@@ -7,6 +7,7 @@ import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorState
 import com.intellij.openapi.fileEditor.FileEditorStateLevel
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.jcef.JBCefBrowser
@@ -200,6 +201,7 @@ class TypstPreviewEditor(private val project: Project, private val file: Virtual
     }
     val current = Attempt(TinymistPreviewServer(project, file.path), browser)
     attempt = current
+    TypstPreviewSelectionSync(project, browser, current.server::scrollToSource)
     current.linkQuery.addHandler { url ->
       onEdt {
         if (!isCurrent(current) || !current.server.isActive) return@onEdt
@@ -259,7 +261,7 @@ class TypstPreviewEditor(private val project: Project, private val file: Virtual
     if (attempt !== current) return
     attempt = null
     cards.remove(current.browser.component)
-    current.browser.dispose()
+    Disposer.dispose(current.browser)
     cards.revalidate()
     cards.repaint()
   }

@@ -1,8 +1,10 @@
 ## [Unreleased]
 
-- Fix unexpected navigation in preview panel.
-- Add support of project root in run configurations.
+- Fix unexpected navigation in preview panel
+- Add support of project root in run configurations
 - Add support of tinymist status indicator
+- Add support of scroll sync
+
 ## [0.1.0]
 
 All major feature is implemented.
