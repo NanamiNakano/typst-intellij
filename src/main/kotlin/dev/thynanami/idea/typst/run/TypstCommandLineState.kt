@@ -19,6 +19,7 @@ import java.nio.file.Files
 class TypstCommandLineState(
     environment: ExecutionEnvironment,
     private val inputFile: VirtualFile,
+    private val rootPath: String,
     private val compiler: TypstCompiler,
     private val mode: TypstRunMode,
 ) : CommandLineState(environment) {
@@ -48,6 +49,7 @@ class TypstCommandLineState(
                 ?: throw ExecutionException("Cannot find typst on PATH. Install typst to compile PDF files.")
             GeneralCommandLine(executable, mode.command, "--format", "pdf", inputFile.path)
         }
+        commandLine.addParameters("--root", rootPath)
         commandLine.withWorkDirectory(layout.root?.toString() ?: inputFile.parent.path)
             .withCharset(Charsets.UTF_8)
 

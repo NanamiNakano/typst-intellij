@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+- Fix unexpected navigation in preview panel.
+- Add support of project root in run configurations.
+
 ## [0.1.0]
 
 All major feature is implemented.

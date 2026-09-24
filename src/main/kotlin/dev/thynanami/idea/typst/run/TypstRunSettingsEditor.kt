@@ -12,6 +12,7 @@ import dev.thynanami.idea.typst.isTypstMarkupFile
 
 class TypstRunSettingsEditor(project: Project) : SettingsEditor<TypstRunConfiguration>() {
     private var inputPath = ""
+    private var rootPath = ""
     private var compiler = TypstCompiler.TYPST
     private var mode = TypstRunMode.COMPILE
 
@@ -25,6 +26,14 @@ class TypstRunSettingsEditor(project: Project) : SettingsEditor<TypstRunConfigur
                 project = project,
             ).bindText(::inputPath).align(AlignX.FILL).resizableColumn()
         }
+        row("Project root:") {
+            @Suppress("UnstableApiUsage")
+            textFieldWithBrowseButton(
+                fileChooserDescriptor = FileChooserDescriptorFactory.singleDir()
+                    .withTitle("Select Project Root"),
+                project = project,
+            ).bindText(::rootPath).align(AlignX.FILL).resizableColumn()
+        }
         row("Mode:") {
             comboBox(TypstRunMode.entries).bindItem(::mode.toNullableProperty())
         }
@@ -37,6 +46,7 @@ class TypstRunSettingsEditor(project: Project) : SettingsEditor<TypstRunConfigur
 
     override fun resetEditorFrom(configuration: TypstRunConfiguration) {
         inputPath = configuration.inputPath
+        rootPath = configuration.rootPath
         compiler = configuration.compiler
         mode = configuration.mode
         panel.reset()
@@ -46,6 +56,7 @@ class TypstRunSettingsEditor(project: Project) : SettingsEditor<TypstRunConfigur
         panel.apply()
         val generatedName = configuration.isGeneratedName
         configuration.inputPath = inputPath
+        configuration.rootPath = rootPath
         configuration.compiler = compiler
         configuration.mode = mode
         if (generatedName) configuration.setGeneratedName()

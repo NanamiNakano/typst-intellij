@@ -31,6 +31,7 @@ enum class TypstRunMode(val command: String, private val label: String) {
 
 class TypstRunConfigurationOptions : LocatableRunConfigurationOptions() {
     var inputPath by string()
+    var rootPath by string()
     var compiler by enum(TypstCompiler.TYPST)
     var mode by enum(TypstRunMode.COMPILE)
 }
@@ -44,6 +45,12 @@ class TypstRunConfiguration(project: Project, factory: ConfigurationFactory, nam
         get() = options.inputPath.orEmpty()
         set(value) {
             options.inputPath = FileUtil.toSystemIndependentName(value).ifEmpty { null }
+        }
+
+    var rootPath: String
+        get() = options.rootPath ?: project.basePath.orEmpty()
+        set(value) {
+            options.rootPath = FileUtil.toSystemIndependentName(value).ifBlank { null }
         }
 
     var compiler: TypstCompiler
@@ -84,7 +91,7 @@ class TypstRunConfiguration(project: Project, factory: ConfigurationFactory, nam
         } catch (error: RuntimeConfigurationError) {
             throw ExecutionException(error)
         }
-        return TypstCommandLineState(environment, file, compiler, mode)
+        return TypstCommandLineState(environment, file, rootPath.ifBlank { file.parent.path }, compiler, mode)
     }
 
     private fun inputFile(): VirtualFile {
