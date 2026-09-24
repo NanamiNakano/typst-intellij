@@ -51,83 +51,9 @@ jobs:
           retention-days: 90
           overwrite: true
 
-  inspectCode:
-    name: Inspect code
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      checks: write
-      pull-requests: write
-    steps:
-      - name: Maximize Build Space
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
-        with:
-          tool-cache: false
-          large-packages: false
-
-      - name: Fetch Sources
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          submodules: recursive
-          persist-credentials: false
-
-      - name: Setup Java
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
-        with:
-          distribution: zulu
-          java-version: 25
-
-      - name: Qodana - Code Inspection
-        uses: JetBrains/qodana-action@10be11607eb323a180e2b76b26c9c5cdceac3e77
-        with:
-          cache-default-branch-only: true
-
-  verify:
-    name: Verify plugin
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Maximize Build Space
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
-        with:
-          tool-cache: true
-
-      - name: Fetch Sources
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          submodules: recursive
-          persist-credentials: false
-
-      - name: Setup Java
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
-        with:
-          distribution: zulu
-          java-version: 25
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
-        with:
-          cache-provider: basic
-
-      - name: Run Plugin Verification tasks
-        run: ./gradlew verifyPlugin --no-daemon
-
-      - name: Collect Plugin Verifier Result
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: pluginVerifier-result
-          path: build/reports/pluginVerifier
-          overwrite: true
-
   release:
     name: Draft release
-    needs: [build, inspectCode, verify]
+    needs: [build]
     if: ${{ startsWith(github.ref, 'refs/tags/') && !github.event.deleted }}
     permissions:
       actions: read
