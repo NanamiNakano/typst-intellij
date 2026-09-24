@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 - Add support of commenter
+- Add support of refactor
 
 ## [0.1.1]
 

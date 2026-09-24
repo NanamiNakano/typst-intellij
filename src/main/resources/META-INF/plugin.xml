@@ -79,6 +79,7 @@
         <psi.declarationProvider implementation="dev.thynanami.idea.typst.lsp.TypstLspSymbolProvider"/>
         <searcher forClass="com.intellij.find.usages.api.UsageSearchParameters"
                   implementationClass="dev.thynanami.idea.typst.lsp.TypstLspUsageSearcher"/>
+        <renameHandler implementation="dev.thynanami.idea.typst.lsp.TypstRenameHandler"/>
         <textmate.bundleProvider implementation="dev.thynanami.idea.typst.TypstTextMateBundleProvider"/>
         <colorSettingsPage implementation="dev.thynanami.idea.typst.config.TypstColorSettingsPage"/>
         <langCodeStyleSettingsProvider implementation="dev.thynanami.idea.typst.config.TypstCodeStyleSettingsProvider"/>
