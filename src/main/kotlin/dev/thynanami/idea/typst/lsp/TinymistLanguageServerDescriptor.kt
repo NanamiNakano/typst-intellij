@@ -24,6 +24,7 @@ import com.intellij.psi.PsiFile
 import dev.thynanami.idea.typst.TypstFileTypeBase
 import dev.thynanami.idea.typst.config.TypstSettings
 import dev.thynanami.idea.typst.isTypstFile
+import dev.thynanami.idea.typst.lsp.status.TypstStatusModel
 import dev.thynanami.idea.typst.typm.TypmProjectLayout
 import kotlinx.coroutines.CancellationException
 import org.eclipse.lsp4j.CodeLens
@@ -45,8 +46,10 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     private val previews = mutableMapOf<String, Preview>()
     private var stopped = false
 
-    override fun createLsp4jClient(handler: LspServerNotificationsHandler): Lsp4jClient =
-        TypstLspClient(project, handler, this)
+    override fun createLsp4jClient(handler: LspServerNotificationsHandler): Lsp4jClient {
+        project.service<TypstStatusModel>().serverStarted(this)
+        return TypstLspClient(project, handler, this)
+    }
 
     fun registerPreview(
         taskId: String,
@@ -87,14 +90,17 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
         }
     }
 
-    override val lspServerListener: LspServerListener = PreviewListener()
+    override val lspServerListener: LspServerListener = ServerListener()
 
-    private inner class PreviewListener : LspServerListener {
+    private inner class ServerListener : LspServerListener {
         override fun serverInitialized(params: InitializeResult) {
             synchronizeTinymistCodeStyle(project)
         }
 
         override fun serverStopped(shutdownNormally: Boolean) {
+            if (!project.isDisposed) {
+                project.service<TypstStatusModel>().serverStopped(this@TinymistLanguageServerDescriptor)
+            }
             val removed = synchronized(previews) {
                 stopped = true
                 previews.values.toList().also {
@@ -116,6 +122,7 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
         CodeStyle.getSettings(project),
         TypstSettings.getInstance().formatter,
     ).toJson().apply {
+        addProperty("compileStatus", "enable")
         addProperty("customizedShowDocument", true)
     }
 }

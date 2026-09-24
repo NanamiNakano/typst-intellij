@@ -31,6 +31,21 @@
                     anchor="right"
                     icon="/icons/typstFiletypeIcon.svg"
                     factoryClass="dev.thynanami.idea.typst.lsp.outline.TypstOutlineToolWindowFactory"/>
+        <statusBarWidgetFactory id="TypstWordCount"
+                                implementation="dev.thynanami.idea.typst.lsp.status.TypstWordCountWidgetFactory"
+                                order="after Position"/>
+        <statusBarWidgetFactory id="TypstCharacterCount"
+                                implementation="dev.thynanami.idea.typst.lsp.status.TypstCharacterCountWidgetFactory"
+                                order="after TypstWordCount"/>
+        <statusBarWidgetFactory id="TypstPageCount"
+                                implementation="dev.thynanami.idea.typst.lsp.status.TypstPageCountWidgetFactory"
+                                order="after TypstCharacterCount"/>
+        <statusBarWidgetFactory id="TypstCompiledFile"
+                                implementation="dev.thynanami.idea.typst.lsp.status.TypstCompiledFileWidgetFactory"
+                                order="after TypstPageCount"/>
+        <statusBarWidgetFactory id="TypstCompilationStatus"
+                                implementation="dev.thynanami.idea.typst.lsp.status.TypstCompilationStatusWidgetFactory"
+                                order="after TypstCompiledFile"/>
         <fileType
                 name="Typst"
                 implementationClass="dev.thynanami.idea.typst.TypstFileType"

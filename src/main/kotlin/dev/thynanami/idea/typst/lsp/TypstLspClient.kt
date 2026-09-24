@@ -16,6 +16,7 @@ import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.platform.lsp.api.Lsp4jClient
 import com.intellij.platform.lsp.api.LspServerNotificationsHandler
 import dev.thynanami.idea.typst.lsp.outline.TypstOutlineModel
+import dev.thynanami.idea.typst.lsp.status.TypstStatusModel
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 
 private val LOG = logger<TypstLspClient>()
@@ -25,6 +26,11 @@ class TypstLspClient(
     serverNotificationsHandler: LspServerNotificationsHandler,
     private val descriptor: TinymistLanguageServerDescriptor,
 ) : Lsp4jClient(serverNotificationsHandler) {
+    @JsonNotification("tinymist/compileStatus")
+    fun handleCompileStatus(status: TinymistCompileStatus) {
+        if (!project.isDisposed) project.service<TypstStatusModel>().update(descriptor, status)
+    }
+
     @JsonNotification("tinymist/documentOutline")
     fun handleDocumentOutline(outline: DocumentOutline) {
         if (!project.isDisposed) project.service<TypstOutlineModel>().update(outline)
