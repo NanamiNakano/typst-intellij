@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Add support of commenter
+
 ## [0.1.1]
 
 - Fix unexpected navigation in preview panel

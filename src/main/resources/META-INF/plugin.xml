@@ -16,6 +16,10 @@
                                implementationClass="dev.thynanami.idea.typst.psi.TypstParserDefinition"/>
         <lang.parserDefinition language="TypstCode"
                                implementationClass="dev.thynanami.idea.typst.psi.TypstCodeParserDefinition"/>
+        <lang.commenter language="Typst"
+                        implementationClass="dev.thynanami.idea.typst.editor.TypstCommenter"/>
+        <lang.commenter language="TypstCode"
+                        implementationClass="dev.thynanami.idea.typst.editor.TypstCommenter"/>
         <fileEditorProvider implementation="dev.thynanami.idea.typst.editor.TypstEditorProvider"/>
         <configurationType implementation="dev.thynanami.idea.typst.run.TypstRunConfigurationType"/>
         <runConfigurationProducer id="typst.compile"

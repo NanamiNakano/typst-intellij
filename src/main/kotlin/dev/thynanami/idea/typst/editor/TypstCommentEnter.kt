@@ -4,8 +4,8 @@ import com.intellij.openapi.editor.Editor
 
 private val lineComment = Regex("^([\\t ]*)(/{2,}!?)(.*)$")
 private val blockCommentStart = Regex("^[\\t ]*/\\*[*!](?!/)(?:[^*]|\\*(?!/))*$")
-private val blockCommentLine = Regex("^[\\t ]+\\*(?:[\\t ](?:[^*]|\\*(?!/))*)?$")
-private val blockCommentEnd = Regex("^[\\t ]+\\*/[\\t ]*$")
+private val blockCommentLine = Regex("^[\\t ]*\\*(?:[\\t ](?:[^*]|\\*(?!/))*)?$")
+private val blockCommentEnd = Regex("^[\\t ]*\\*{1,2}/[\\t ]*$")
 
 internal fun Editor.typstCommentEnter(offset: Int): Boolean {
     val text = document.charsSequence
@@ -28,8 +28,8 @@ internal fun Editor.typstCommentEnter(offset: Int): Boolean {
     if ("comment.block.typst" !in scopes) return false
     if (blockCommentStart.matches(before)) {
         val prefix = "\n$indent * "
-        if (after.trim() == "*/") {
-            typstEnterEdit(offset, end, "$prefix\n$indent */", prefix.length)
+        if (after.trim() == "*/" || after.trim() == "**/") {
+            typstEnterEdit(offset, end, "$prefix\n$indent **/", prefix.length)
         } else {
             typstEnterEdit(offset, offset + after.takeWhile { it == ' ' || it == '\t' }.length, prefix)
         }
@@ -40,8 +40,8 @@ internal fun Editor.typstCommentEnter(offset: Int): Boolean {
         return true
     }
     if (blockCommentEnd.matches(before)) {
-        // The leading space aligns the asterisks with /**; it is not the containing block's indent.
-        typstEnterEdit(offset, offset, "\n${indent.removeSuffix(" ")}")
+        val nextIndent = indent.removeSuffix(" ")
+        typstEnterEdit(offset, offset, "\n$nextIndent")
         return true
     }
     return false
