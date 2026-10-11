@@ -95,6 +95,7 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     private inner class ServerListener : LspServerListener {
         override fun serverInitialized(params: InitializeResult) {
             synchronizeTinymistCodeStyle(project)
+            if (!project.isDisposed) project.service<TinymistLanguageServer>().refreshFocus()
         }
 
         override fun serverStopped(shutdownNormally: Boolean) {

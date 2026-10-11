@@ -1,25 +1,35 @@
 package dev.thynanami.idea.typst.lsp
 
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent
+import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.lsp.api.LspClient
 import com.intellij.platform.lsp.api.LspClientManager
 import com.intellij.platform.lsp.api.LspServerState
 import dev.thynanami.idea.typst.editor.TypstPreviewEditor
 import dev.thynanami.idea.typst.editor.TypstSplitEditor
 import dev.thynanami.idea.typst.isTypstFile
+import dev.thynanami.idea.typst.lsp.status.TypstStatusModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.eclipse.lsp4j.ExecuteCommandParams
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -28,8 +38,86 @@ private val startupTimeout = 15.seconds
 private val providerClass = TypstLspServerSupportProvider::class.java
 
 @Service(Service.Level.PROJECT)
-class TinymistLanguageServer(private val project: Project, private val scope: CoroutineScope) {
+class TinymistLanguageServer(private val project: Project, private val scope: CoroutineScope) : Disposable {
     private val restartMutex = Mutex()
+    private val focusRequests = Channel<Unit>(Channel.CONFLATED)
+    private var selectedPath: String? = null
+    private var selectionRevision = 0L
+    private var focusedClient: LspClient? = null
+    private var focusedRevision = -1L
+
+    init {
+        project.messageBus.connect(this).subscribe(
+            FileEditorManagerListener.FILE_EDITOR_MANAGER,
+            object : FileEditorManagerListener {
+                override fun selectionChanged(event: FileEditorManagerEvent) = refreshFocus()
+
+                override fun fileOpened(source: FileEditorManager, file: VirtualFile) = refreshFocus()
+
+                override fun fileClosed(source: FileEditorManager, file: VirtualFile) = refreshFocus()
+            },
+        )
+        scope.launch {
+            // Keep commands ordered; a selection made during a request is processed next.
+            for (ignored in focusRequests) {
+                try {
+                    synchronizeFocus()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    logger<TinymistLanguageServer>().warn("Could not update Tinymist's active document", error)
+                }
+            }
+        }
+        refreshFocus()
+    }
+
+    fun refreshFocus() {
+        scope.launch(Dispatchers.EDT) {
+            if (project.isDisposed) return@launch
+            updateSelection()
+            focusRequests.trySend(Unit)
+        }
+    }
+
+    private fun selectedTypstFile(): VirtualFile? = FileEditorManager.getInstance(project)
+        .selectedEditor?.file?.takeIf { it.isValid && it.isInLocalFileSystem && it.isTypstFile() }
+
+    private fun updateSelection(): Pair<VirtualFile?, Long> {
+        val file = selectedTypstFile()
+        if (selectedPath != file?.path) {
+            selectedPath = file?.path
+            selectionRevision++
+        }
+        project.service<TypstStatusModel>().fileSelected(file)
+        return file to selectionRevision
+    }
+
+    private suspend fun synchronizeFocus() {
+        if (project.isDisposed) return
+        val (file, revision) = withContext(Dispatchers.EDT) {
+            if (project.isDisposed) return@withContext null
+            updateSelection()
+        } ?: return
+        if (project.isDisposed) return
+        // Initialization schedules another refresh; editor events never wait for startup.
+        val client = running() ?: return
+        val descriptor = client.descriptor as? TinymistLanguageServerDescriptor ?: return
+        val path = file?.path
+        if (focusedClient === client && focusedRevision == revision) return
+
+        focusedClient = null
+        project.service<TypstStatusModel>().focusChanged(descriptor, file)
+        client.sendRequest { server ->
+            server.workspaceService.executeCommand(ExecuteCommandParams("tinymist.focusMain", listOf(path)))
+        }
+        if (client.state == LspServerState.Running) {
+            focusedClient = client
+            focusedRevision = revision
+        }
+    }
+
+    override fun dispose() = Unit
 
     fun launch(task: suspend () -> Unit): Job = scope.launch { task() }
 

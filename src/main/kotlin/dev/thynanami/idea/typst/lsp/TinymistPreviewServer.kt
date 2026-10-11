@@ -25,8 +25,9 @@ class TinymistPreviewServer(private val project: Project, private val filepath: 
   }
 
   private val taskId = UUID.randomUUID().toString()
+  // Editor previews must not pin the primary compiler used for the active file's diagnostics and statistics.
   private val previewArguments =
-    listOf("--task-id", taskId, "--data-plane-host", LOOPBACK_DATA_PLANE_HOST, filepath)
+    listOf("--task-id", taskId, "--not-primary", "--data-plane-host", LOOPBACK_DATA_PLANE_HOST, filepath)
 
   @Volatile
   private var state = State.NEW
