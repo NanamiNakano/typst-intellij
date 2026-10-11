@@ -1,5 +1,7 @@
 package dev.thynanami.idea.typst.lsp
 
+import com.intellij.codeInsight.completion.CompletionParameters
+import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementPresentation
 import com.intellij.platform.lsp.api.customization.LspCompletionSupport
 import org.eclipse.lsp4j.CompletionItem
@@ -11,6 +13,11 @@ class TypstCompletionSupport internal constructor(
     private val glyphIcon: (Int) -> Icon,
 ) : LspCompletionSupport() {
     constructor() : this({ TypstCompletionGlyphs.getInstance().icon(it) })
+
+    override fun createLookupElement(parameters: CompletionParameters, item: CompletionItem): LookupElement? =
+        super.createLookupElement(parameters, item)?.apply {
+            putUserData(tinymistCompletionItemKey, TinymistCompletionItem(this@TypstCompletionSupport, item))
+        }
 
     override fun renderLookupElement(item: CompletionItem, presentation: LookupElementPresentation) {
         // This hook is also called after completionItem/resolve. Leave the CompletionItem itself intact:

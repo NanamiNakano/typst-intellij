@@ -74,6 +74,10 @@
         <postStartupActivity implementation="dev.thynanami.idea.typst.typm.TypmProjectActivity"/>
         <platform.lsp.integrationProvider
                 implementation="dev.thynanami.idea.typst.lsp.TypstLspServerSupportProvider"/>
+        <completion.contributor language="Typst" order="first"
+                                implementationClass="dev.thynanami.idea.typst.lsp.TypstCompletionContributor"/>
+        <completion.contributor language="TypstCode" order="first"
+                                implementationClass="dev.thynanami.idea.typst.lsp.TypstCompletionContributor"/>
         <psi.implicitReferenceProvider implementation="dev.thynanami.idea.typst.lsp.TypstLspSymbolProvider"
                                        order="last"/>
         <psi.declarationProvider implementation="dev.thynanami.idea.typst.lsp.TypstLspSymbolProvider"/>
