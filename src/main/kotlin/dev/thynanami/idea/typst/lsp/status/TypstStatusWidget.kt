@@ -6,7 +6,6 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.StatusBar
@@ -67,8 +66,7 @@ private abstract class TypstStatusWidget(
 
     private fun refresh() {
         if (isDisposed || project.isDisposed) return
-        val file = getSelectedFile()?.takeIf { it.isTypstFile() }
-        visibleStatus = latestStatus?.takeIf { file != null && FileUtil.pathsEqual(it.path, file.path) }
+        visibleStatus = latestStatus?.takeIf { it.path.isNotBlank() && getSelectedFile()?.isTypstFile() == true }
         statusBar?.updateWidget(ID())
     }
 

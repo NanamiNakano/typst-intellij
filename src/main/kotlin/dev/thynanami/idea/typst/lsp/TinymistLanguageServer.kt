@@ -102,12 +102,10 @@ class TinymistLanguageServer(private val project: Project, private val scope: Co
         if (project.isDisposed) return
         // Initialization schedules another refresh; editor events never wait for startup.
         val client = running() ?: return
-        val descriptor = client.descriptor as? TinymistLanguageServerDescriptor ?: return
         val path = file?.path
         if (focusedClient === client && focusedRevision == revision) return
 
         focusedClient = null
-        project.service<TypstStatusModel>().focusChanged(descriptor, file)
         client.sendRequest { server ->
             server.workspaceService.executeCommand(ExecuteCommandParams("tinymist.focusMain", listOf(path)))
         }
