@@ -1,6 +1,8 @@
 package dev.thynanami.idea.typst.editor
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Caret
 import com.intellij.openapi.editor.RangeMarker
 import com.intellij.openapi.util.Disposer
@@ -11,13 +13,41 @@ private val autoClosingPairsKey = Key.create<TypstAutoClosingPairs>("typst.autoC
 internal fun Caret.typstAutoClosingPairs(create: Boolean = false): TypstAutoClosingPairs? {
     getUserData(autoClosingPairsKey)?.let { return it }
     if (!create) return null
-    return TypstAutoClosingPairs(this).also {
-        putUserData(autoClosingPairsKey, it)
-        Disposer.register(this, it)
+    return service<TypstAutoClosingPairsService>().create(this)
+}
+
+@Service(Service.Level.APP)
+internal class TypstAutoClosingPairsService : Disposable {
+    private val states = mutableSetOf<TypstAutoClosingPairs>()
+    private var disposed = false
+
+    fun create(caret: Caret): TypstAutoClosingPairs = synchronized(states) {
+        check(!disposed)
+        TypstAutoClosingPairs(caret, this).also {
+            states += it
+            caret.putUserData(autoClosingPairsKey, it)
+            Disposer.register(caret, it)
+        }
+    }
+
+    fun remove(state: TypstAutoClosingPairs) = synchronized(states) {
+        states.remove(state)
+    }
+
+    override fun dispose() {
+        // Ordinary text editors, including .typc files, can survive plugin unload.
+        val remaining = synchronized(states) {
+            disposed = true
+            states.toList().also { states.clear() }
+        }
+        remaining.forEach { Disposer.dispose(it) }
     }
 }
 
-internal class TypstAutoClosingPairs(private val caret: Caret) : Disposable {
+internal class TypstAutoClosingPairs(
+    private val caret: Caret,
+    private val owner: TypstAutoClosingPairsService,
+) : Disposable {
     private val pairs = mutableListOf<TypstAutoClosingPair>()
     var pendingDeletion: TypstAutoClosingPair? = null
 
@@ -51,6 +81,8 @@ internal class TypstAutoClosingPairs(private val caret: Caret) : Disposable {
     }
 
     override fun dispose() {
+        if (caret.getUserData(autoClosingPairsKey) === this) caret.putUserData(autoClosingPairsKey, null)
+        owner.remove(this)
         pairs.forEach { it.dispose() }
         pairs.clear()
         pendingDeletion?.dispose()

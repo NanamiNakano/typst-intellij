@@ -19,6 +19,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.command.impl.FinishMarkAction
 import com.intellij.openapi.command.impl.StartMarkAction
 import com.intellij.openapi.command.undo.UndoManager
+import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.Editor
@@ -144,6 +145,26 @@ private fun renameClient(project: Project, file: VirtualFile): LspClient? {
 
 private enum class RenameTargetKind { IDENTIFIER, LABEL, PATH }
 
+@Service(Service.Level.PROJECT)
+internal class TypstRenameSessions : Disposable {
+    // Inline-template callbacks and dynamic plugin disposal run on the EDT.
+    private val sessions = mutableMapOf<Editor, () -> Unit>()
+
+    fun register(editor: Editor, onUnload: () -> Unit) {
+        sessions[editor] = onUnload
+    }
+
+    fun remove(editor: Editor) {
+        sessions.remove(editor)
+    }
+
+    override fun dispose() {
+        val active = sessions.values.toList()
+        sessions.clear()
+        active.forEach { it() }
+    }
+}
+
 private class TypstRenameSession(
     private val project: Project,
     private val editor: Editor,
@@ -156,6 +177,7 @@ private class TypstRenameSession(
     private val kind: RenameTargetKind,
 ) : TemplateEditingAdapter(), Disposable {
     private val document = editor.document
+    private val sessions = project.service<TypstRenameSessions>()
     private val originalText = document.text
     private val commandName = RefactoringBundle.message("renaming.command.name", oldName)
     private val highlights = mutableListOf<RangeHighlighter>()
@@ -167,6 +189,9 @@ private class TypstRenameSession(
     private var pending = false
     private var finished = false
     private var initialized = false
+    private var template: Template? = null
+    private var unloading = false
+    private var pendingRestore: Runnable? = null
 
     @Suppress("UnstableApiUsage") // An exact end offset is needed for Typst's flat PSI file.
     fun start() {
@@ -180,6 +205,7 @@ private class TypstRenameSession(
         WriteCommandAction.writeCommandAction(project).withName(commandName).run<RuntimeException> {
             mark = StartMarkAction.start(editor, project, commandName)
             try {
+                sessions.register(editor, ::stopForUnload)
                 val template = builder.buildInlineTemplate().apply {
                     setToIndent(false)
                     isToShortenLongNames = false
@@ -200,6 +226,7 @@ private class TypstRenameSession(
     override fun currentVariableChanged(state: TemplateState, template: Template, oldIndex: Int, newIndex: Int) {
         if (initialized || newIndex < 0) return
         initialized = true
+        this.template = template
         Disposer.register(state, this)
         val manager = HighlightManager.getInstance(project)
         for (index in 0 until state.segmentsCount) {
@@ -236,7 +263,7 @@ private class TypstRenameSession(
                 }
             }
             val name = newName
-            if (brokenOff || name.isNullOrBlank() || name == oldName || editor.isDisposed || project.isDisposed) return
+            if (brokenOff || unloading || name.isNullOrBlank() || name == oldName || editor.isDisposed || project.isDisposed) return
             val error = when (kind) {
                 RenameTargetKind.IDENTIFIER -> if (!isRenameIdentifier(name)) "Enter a valid Typst identifier that is not a keyword." else null
                 RenameTargetKind.LABEL -> if (!isRenameLabel(name)) "Enter a valid Typst label name without leading or trailing ':' or '.'." else null
@@ -275,7 +302,8 @@ private class TypstRenameSession(
             document.getText(TextRange(it.startOffset, it.endOffset))
         }
         // Editing outside the active slot also cancels a template. Keep live ranges until it is inactive.
-        ApplicationManager.getApplication().invokeLater {
+        val restore = Runnable {
+            if (finished) return@Runnable
             try {
                 if (!project.isDisposed && document.isWritable) {
                     WriteCommandAction.writeCommandAction(project).withName(commandName).run<RuntimeException> {
@@ -291,9 +319,31 @@ private class TypstRenameSession(
                 finish()
             }
         }
+        pendingRestore = restore
+        ApplicationManager.getApplication().invokeLater(restore)
+    }
+
+    private fun stopForUnload() {
+        if (finished) return
+        unloading = true
+        try {
+            val restore = pendingRestore
+            if (restore != null) {
+                restore.run()
+            } else if (!project.isDisposed && !editor.isDisposed) {
+                val manager = TemplateManager.getInstance(project)
+                if (template != null && manager.getActiveTemplate(editor) === template) {
+                    // The public API finishes with brokenOff=true, restoring our preview without an LSP rename.
+                    manager.finishTemplate(editor)
+                }
+            }
+        } finally {
+            finish()
+        }
     }
 
     private fun commit(name: String) {
+        if (finished || unloading) return
         try {
             if (project.isDisposed || editor.isDisposed) return
             if (renameClient(project, file.virtualFile) !== client || !document.charsSequence.contentEquals(originalText)) {
@@ -307,7 +357,8 @@ private class TypstRenameSession(
             val applied = runRenameRequest(project, editor, commandName) {
                 val edit = client.sendRequest { it.textDocumentService.rename(params) } ?: return@runRenameRequest null
                 readAndEdtWriteAction {
-                    if (document.modificationStamp != stamp || PsiModificationTracker.getInstance(project).modificationCount != psiStamp ||
+                    if (finished || unloading || document.modificationStamp != stamp ||
+                        PsiModificationTracker.getInstance(project).modificationCount != psiStamp ||
                         renameClient(project, file.virtualFile) !== client
                     ) throw IllegalStateException("The project changed during rename. Please try again.")
                     val action = TypstRenameEdit(client, edit, commandName)
@@ -340,6 +391,9 @@ private class TypstRenameSession(
     private fun finish() {
         if (finished) return
         finished = true
+        sessions.remove(editor)
+        template = null
+        pendingRestore = null
         clearHighlights()
         caret?.dispose()
         caret = null
