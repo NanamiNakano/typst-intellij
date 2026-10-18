@@ -73,16 +73,14 @@ internal class TypstLspNavigation(private val project: Project) {
         val stamp = document.modificationStamp
         val psiStamp = PsiModificationTracker.getInstance(project).modificationCount
         val previous = cached
+        // An origin range can contain nested references, such as @outer[@inner].
         if (previous != null && previous.client === client && previous.file == file.virtualFile &&
             previous.documentStamp == stamp && previous.psiStamp == psiStamp &&
-            (previous.offset == offset || previous.definition?.range?.let {
-                offset >= it.startOffset && offset < it.endOffset
-            } == true) &&
-            (previous.definition != null || System.nanoTime() - previous.createdAt < 500_000_000L)
+            previous.offset == offset && System.nanoTime() - previous.createdAt < 500_000_000L
         ) return previous.definition
 
         val params = DefinitionParams(client.getDocumentIdentifier(file.virtualFile), getLsp4jPosition(document, offset))
-        // Symbol providers also run during hover: use a short, cancellable wait, never a cache lock.
+        // Keep hover requests short and cancellable.
         val response = client.sendRequestSync(250) { it.textDocumentService.definition(params) }
         val links = response?.map({ locations -> locations.map { LocationLink(it.uri, it.range, it.range) } }, { it })
             .orEmpty()
@@ -93,7 +91,7 @@ internal class TypstLspNavigation(private val project: Project) {
             ProgressManager.checkCanceled()
             val origin = link.originSelectionRange?.let { getRangeInDocument(document, it) ?: return@mapNotNull null }
                 ?: TextRange(offset, offset)
-            if (!origin.containsOffset(offset) || (hasRangeToRight && origin.endOffset <= offset)) return@mapNotNull null
+            if (hasRangeToRight && origin.endOffset <= offset) return@mapNotNull null
             val targetFile = client.descriptor.findFileByUri(link.targetUri) ?: return@mapNotNull null
             val targetPsi = PsiManager.getInstance(project).findFile(targetFile) ?: return@mapNotNull null
             val targetRange = getRangeInDocument(targetPsi.fileDocument, link.targetSelectionRange) ?: return@mapNotNull null
@@ -105,13 +103,17 @@ internal class TypstLspNavigation(private val project: Project) {
             val target = symbols.singleOrNull()
             val declaration = target?.file?.virtualFile == file.virtualFile &&
                 (target.range == origin || (origin.isEmpty && target.range.containsOffset(offset)))
-            TypstLspDefinition(origin, symbols.map { it.createPointer() }, declaration)
+            // IntelliJ requires the source range to contain the requested offset.
+            val range = if (origin.containsOffset(offset)) origin else TextRange(offset, offset)
+            TypstLspDefinition(range, symbols.map { it.createPointer() }, declaration)
         }
         ProgressManager.checkCanceled()
         if (document.modificationStamp != stamp || PsiModificationTracker.getInstance(project).modificationCount != psiStamp ||
             client.state != LspServerState.Running
         ) return null
-        cached = CachedTypstDefinition(client, file.virtualFile, stamp, psiStamp, offset, definition, System.nanoTime())
+        cached = definition?.let {
+            CachedTypstDefinition(client, file.virtualFile, stamp, psiStamp, offset, it, System.nanoTime())
+        }
         return definition
     }
 }
@@ -122,7 +124,7 @@ private data class CachedTypstDefinition(
     val documentStamp: Long,
     val psiStamp: Long,
     val offset: Int,
-    val definition: TypstLspDefinition?,
+    val definition: TypstLspDefinition,
     val createdAt: Long,
 )
 
