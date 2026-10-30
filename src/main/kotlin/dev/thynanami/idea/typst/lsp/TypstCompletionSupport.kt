@@ -4,6 +4,7 @@ import com.intellij.codeInsight.completion.CompletionParameters
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementPresentation
 import com.intellij.platform.lsp.api.customization.LspCompletionSupport
+import dev.thynanami.idea.typst.isTypstFile
 import org.eclipse.lsp4j.CompletionItem
 import java.util.Locale
 import javax.swing.Icon
@@ -13,6 +14,9 @@ class TypstCompletionSupport internal constructor(
     private val glyphIcon: (Int) -> Icon,
 ) : LspCompletionSupport() {
     constructor() : this({ TypstCompletionGlyphs.getInstance().icon(it) })
+
+    override fun shouldRunCodeCompletion(parameters: CompletionParameters): Boolean =
+        parameters.originalFile.virtualFile?.isTypstFile() == true
 
     override fun createLookupElement(parameters: CompletionParameters, item: CompletionItem): LookupElement? =
         super.createLookupElement(parameters, item)?.apply {

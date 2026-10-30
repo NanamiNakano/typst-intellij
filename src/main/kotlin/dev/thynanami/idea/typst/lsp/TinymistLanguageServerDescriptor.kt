@@ -18,6 +18,9 @@ import com.intellij.platform.lsp.api.customization.LspCustomization
 import com.intellij.platform.lsp.api.customization.LspDiagnosticsSupport
 import com.intellij.platform.lsp.api.customization.LspDocumentHighlightsSupport
 import com.intellij.platform.lsp.api.customization.LspFormattingSupport
+import com.intellij.platform.lsp.api.customization.LspInlayHintSupport
+import com.intellij.platform.lsp.api.customization.LspRenameSupport
+import com.intellij.platform.lsp.api.customization.LspSelectionRangeSupport
 import com.intellij.platform.lsp.api.customization.LspSemanticTokensCustomizer
 import com.intellij.platform.lsp.api.customization.LspSemanticTokensDisabled
 import com.intellij.psi.PsiFile
@@ -115,7 +118,14 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     override fun createCommandLine(): GeneralCommandLine =
         TypmProjectLayout(project.basePath).applyEnvironment(GeneralCommandLine(languageServerPath.toString()))
 
-    override fun isSupportedFile(file: VirtualFile): Boolean = file.isTypstFile()
+    override fun isSupportedFile(file: VirtualFile): Boolean {
+        if (file.isTypstFile()) return true
+        // Like Tinymist's VS Code client, synchronize all non-Typst text inputs, not
+        // just known bibliography extensions. The platform owns document versions,
+        // open/change/save/close notifications, and replay after a server restart.
+        return !file.isDirectory && !file.fileType.isBinary &&
+            !machineChanges.containsMatchIn(file.path) && !mirrorLog.containsMatchIn(file.name)
+    }
 
     override val lspCustomization: LspCustomization = TinymistLspCustomization()
 
@@ -125,6 +135,12 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     ).toJson().apply {
         addProperty("compileStatus", "enable")
         addProperty("customizedShowDocument", true)
+    }
+
+    private companion object {
+        // Same generated-file exclusions as editors/vscode/src/language.ts in Tinymist.
+        val machineChanges = Regex("[/\\\\](node_modules|target|\\.git)[/\\\\]")
+        val mirrorLog = Regex("tinymist.*log$")
     }
 }
 
@@ -142,9 +158,24 @@ private class TinymistLspCustomization : LspCustomization() {
         else LspSemanticTokensDisabled
 
     override val formattingCustomizer: LspFormattingSupport = TinymistFormattingSupport()
+
+    override val inlayHintCustomizer: LspInlayHintSupport = object : LspInlayHintSupport() {
+        override fun shouldAskServerForInlayHints(file: VirtualFile): Boolean = file.isTypstFile()
+    }
+
+    override val selectionRangeCustomizer: LspSelectionRangeSupport = object : LspSelectionRangeSupport() {
+        override fun shouldAskServerForSelectionRange(file: VirtualFile): Boolean = file.isTypstFile()
+    }
+
+    override val renameCustomizer: LspRenameSupport = object : LspRenameSupport() {
+        override fun shouldRunRename(psiFile: PsiFile): Boolean =
+            psiFile.virtualFile?.isTypstFile() == true && super.shouldRunRename(psiFile)
+    }
 }
 
 private class TinymistCodeLensSupport : LspCodeLensSupport() {
+    override fun shouldAskServerForCodeLenses(file: VirtualFile): Boolean = file.isTypstFile()
+
     override fun shouldDisplayCodeLens(file: VirtualFile, codeLens: CodeLens): Boolean =
         codeLens.command?.command != "tinymist.exportPdf"
 }
@@ -159,7 +190,7 @@ private class TinymistFormattingSupport : LspFormattingSupport() {
         file: VirtualFile,
         ideCanFormatThisFileItself: Boolean,
         serverExplicitlyWantsToFormatThisFile: Boolean,
-    ): Boolean = true
+    ): Boolean = file.isTypstFile()
 }
 
 private fun VirtualFile.hasFileSystemPath(): Boolean =
