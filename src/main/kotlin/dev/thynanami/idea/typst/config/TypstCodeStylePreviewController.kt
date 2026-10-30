@@ -1,18 +1,29 @@
 package dev.thynanami.idea.typst.config
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.asContextElement
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.Disposer
-import com.intellij.util.Alarm
-import com.intellij.util.concurrency.AppExecutorUtil
 import dev.thynanami.idea.typst.lsp.TinymistBinary
 import dev.thynanami.idea.typst.lsp.TinymistCodeStylePreviewSession
 import dev.thynanami.idea.typst.lsp.TinymistFormattingOptions
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.nio.file.Path
-import java.util.concurrent.Future
-import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class TypstCodeStylePreviewController(
     private val pluginPath: Path,
@@ -20,10 +31,8 @@ internal class TypstCodeStylePreviewController(
     private val displayText: (String) -> Unit,
     private val displayError: (String?) -> Unit,
 ) : Disposable {
-    private val alarm = Alarm(Alarm.ThreadToUse.SWING_THREAD, this)
     private var lastSnapshot: TypstPreviewSnapshot? = null
-    private var currentWork: TypstPreviewWork? = null
-    private var future: Future<*>? = null
+    private var work: Job? = null
     private var disposed = false
 
     init {
@@ -38,38 +47,40 @@ internal class TypstCodeStylePreviewController(
         cancel()
         lastSnapshot = snapshot
         displayError(null)
-        val modality = ModalityState.current()
-        val work = TypstPreviewWork(pluginPath, snapshot) { completed, result, error ->
-            ApplicationManager.getApplication().invokeLater({
-                if (!disposed && currentWork === completed) {
-                    currentWork = null
-                    future = null
-                    if (error == null) {
-                        displayError(null)
-                        displayText(result ?: snapshot.source)
-                    } else {
-                        lastSnapshot = null
-                        logger<TypstCodeStylePreviewController>().warn("Could not format Typst code style preview", error)
-                        displayError(error.message ?: "Tinymist could not format the preview.")
-                    }
+        work = service<TypstCodeStylePreviewService>().launch(ModalityState.current()) {
+            delay(300.milliseconds)
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    TinymistCodeStylePreviewSession(
+                        TinymistBinary.resolve(pluginPath), snapshot.source, snapshot.options,
+                    ).format()
                 }
-            }, modality)
-        }
-        currentWork = work
-        alarm.addRequest({
-            if (!disposed && currentWork === work) {
-                future = AppExecutorUtil.getAppExecutorService().submit(work)
+                displayError(null)
+                displayText(result ?: snapshot.source)
+            } catch (error: TimeoutCancellationException) {
+                currentCoroutineContext().ensureActive()
+                failed(error)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (cancelled: ProcessCanceledException) {
+                throw cancelled
+            } catch (error: Exception) {
+                currentCoroutineContext().ensureActive()
+                failed(error)
             }
-        }, 300, modality)
+        }
+    }
+
+    private fun failed(error: Exception) {
+        lastSnapshot = null
+        logger<TypstCodeStylePreviewController>().warn("Could not format Typst code style preview", error)
+        displayError(error.message ?: "Tinymist could not format the preview.")
     }
 
     fun cancel() {
-        alarm.cancelAllRequests()
         lastSnapshot = null
-        currentWork?.cancel()
-        currentWork = null
-        future?.cancel(true)
-        future = null
+        work?.cancel()
+        work = null
     }
 
     override fun dispose() {
@@ -80,38 +91,9 @@ internal class TypstCodeStylePreviewController(
 
 private data class TypstPreviewSnapshot(val source: String, val options: TinymistFormattingOptions)
 
-private class TypstPreviewWork(
-    private val pluginPath: Path,
-    private val snapshot: TypstPreviewSnapshot,
-    private val completed: (TypstPreviewWork, String?, Exception?) -> Unit,
-) : Runnable {
-    private val cancelled = AtomicBoolean()
-
-    @Volatile
-    private var session: TinymistCodeStylePreviewSession? = null
-
-    override fun run() {
-        if (cancelled.get()) return
-        try {
-            val currentSession = TinymistCodeStylePreviewSession(
-                TinymistBinary.resolve(pluginPath), snapshot.source, snapshot.options,
-            )
-            session = currentSession
-            if (cancelled.get()) {
-                currentSession.cancel()
-                return
-            }
-            val result = currentSession.format()
-            if (!cancelled.get()) completed(this, result, null)
-        } catch (error: Exception) {
-            if (!cancelled.get()) completed(this, null, error)
-        } finally {
-            session = null
-        }
-    }
-
-    fun cancel() {
-        cancelled.set(true)
-        session?.cancel()
-    }
+@Service(Service.Level.APP)
+internal class TypstCodeStylePreviewService(private val scope: CoroutineScope) {
+    // The platform cancels and awaits this work on plugin unload; the panel can cancel it sooner.
+    fun launch(modality: ModalityState, task: suspend () -> Unit): Job =
+        scope.launch(Dispatchers.EDT + modality.asContextElement()) { task() }
 }

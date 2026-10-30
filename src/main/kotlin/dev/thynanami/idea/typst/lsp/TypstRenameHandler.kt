@@ -12,7 +12,7 @@ import com.intellij.codeInsight.template.impl.TemplateState
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
-import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.readAndEdtWriteAction
 import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.command.WriteCommandAction
@@ -45,7 +45,10 @@ import com.intellij.refactoring.rename.RenameHandler
 import com.intellij.refactoring.rename.inplace.MyLookupExpression
 import dev.thynanami.idea.typst.isTypstFile
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import org.eclipse.lsp4j.PrepareRenameParams
 import org.eclipse.lsp4j.ReferenceContext
@@ -146,7 +149,7 @@ private fun renameClient(project: Project, file: VirtualFile): LspClient? {
 private enum class RenameTargetKind { IDENTIFIER, LABEL, PATH }
 
 @Service(Service.Level.PROJECT)
-internal class TypstRenameSessions : Disposable {
+internal class TypstRenameSessions(private val scope: CoroutineScope) : Disposable {
     // Inline-template callbacks and dynamic plugin disposal run on the EDT.
     private val sessions = mutableMapOf<Editor, () -> Unit>()
 
@@ -156,6 +159,10 @@ internal class TypstRenameSessions : Disposable {
 
     fun remove(editor: Editor) {
         sessions.remove(editor)
+    }
+
+    fun invokeLater(action: () -> Unit) {
+        scope.launch(Dispatchers.EDT) { action() }
     }
 
     override fun dispose() {
@@ -279,7 +286,7 @@ private class TypstRenameSession(
             }
             pending = true
             // Template completion may run inside a write action. Defer RPC until that action has finished.
-            ApplicationManager.getApplication().invokeLater { commit(name) }
+            sessions.invokeLater { commit(name) }
         } finally {
             clearHighlights()
             if (!pending) finish()
@@ -320,7 +327,7 @@ private class TypstRenameSession(
             }
         }
         pendingRestore = restore
-        ApplicationManager.getApplication().invokeLater(restore)
+        sessions.invokeLater { restore.run() }
     }
 
     private fun stopForUnload() {

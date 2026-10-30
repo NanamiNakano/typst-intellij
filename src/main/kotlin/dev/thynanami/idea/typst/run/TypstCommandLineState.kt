@@ -54,6 +54,7 @@ class TypstCommandLineState(
             .withCharset(Charsets.UTF_8)
 
         return KillableColoredProcessHandler(commandLine).also {
+            project.service<TypstRunLifecycle>().register(it, environment.executor)
             ProcessTerminatedListener.attach(it, project)
         }
     }

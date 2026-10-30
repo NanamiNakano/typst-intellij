@@ -48,9 +48,11 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
 
     private val previews = mutableMapOf<String, Preview>()
     private var stopped = false
+    private val languageServer = project.service<TinymistLanguageServer>()
+    private val statusModel = project.service<TypstStatusModel>()
 
     override fun createLsp4jClient(handler: LspServerNotificationsHandler): Lsp4jClient {
-        project.service<TypstStatusModel>().serverStarted(this)
+        statusModel.serverStarted(this)
         return TypstLspClient(project, handler, this)
     }
 
@@ -77,7 +79,7 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     }
 
     fun navigateOutline(item: OutlineItem) {
-        project.service<TinymistLanguageServer>().launch {
+        languageServer.launch {
             val targets = synchronized(previews) { previews.values.toList() }
             for (preview in targets) {
                 for (request in item.scrollRequests()) {
@@ -98,12 +100,14 @@ class TinymistLanguageServerDescriptor(private val languageServerPath: Path, pro
     private inner class ServerListener : LspServerListener {
         override fun serverInitialized(params: InitializeResult) {
             synchronizeTinymistCodeStyle(project)
-            if (!project.isDisposed) project.service<TinymistLanguageServer>().refreshFocus()
+            if (!project.isDisposed) {
+                languageServer.serverInitialized(this@TinymistLanguageServerDescriptor)
+            }
         }
 
         override fun serverStopped(shutdownNormally: Boolean) {
             if (!project.isDisposed) {
-                project.service<TypstStatusModel>().serverStopped(this@TinymistLanguageServerDescriptor)
+                statusModel.serverStopped(this@TinymistLanguageServerDescriptor)
             }
             val removed = synchronized(previews) {
                 stopped = true

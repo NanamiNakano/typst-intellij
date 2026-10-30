@@ -3,6 +3,16 @@ package dev.thynanami.idea.typst.lsp
 import com.intellij.openapi.editor.impl.DocumentImpl
 import com.intellij.platform.lsp.util.applyTextEdits
 import com.intellij.util.concurrency.AppExecutorUtil
+import com.intellij.util.io.awaitExit
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.eclipse.lsp4j.ClientCapabilities
 import org.eclipse.lsp4j.DidOpenTextDocumentParams
 import org.eclipse.lsp4j.DocumentFormattingParams
@@ -23,138 +33,96 @@ import org.eclipse.lsp4j.services.LanguageClient
 import org.eclipse.lsp4j.services.LanguageServer
 import java.nio.file.Path
 import java.util.UUID
-import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.seconds
 
 internal class TinymistCodeStylePreviewSession(
     private val binaryPath: Path,
     private val text: String,
     private val options: TinymistFormattingOptions,
 ) {
-    private val cancelled = AtomicBoolean()
-    private val process = AtomicReference<Process?>()
-    private val listening = AtomicReference<Future<Void>?>()
-    private val request = AtomicReference<CompletableFuture<*>?>()
-
-    fun format(): String? {
-        checkCancelled()
-        val timeout = AppExecutorUtil.getAppScheduledExecutorService().schedule(::cancel, 12, TimeUnit.SECONDS)
-        var server: LanguageServer? = null
-        var initialized = false
-        try {
+    suspend fun format(): String? = withContext(Dispatchers.IO) {
+        withTimeout(12.seconds) {
+            currentCoroutineContext().ensureActive()
             val directory = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath()
-            val started = ProcessBuilder(binaryPath.toString())
+            val process = ProcessBuilder(binaryPath.toString())
                 .directory(directory.toFile())
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
                 .start()
-            process.set(started)
-            checkCancelled()
+            var listening: Future<Void>? = null
+            try {
+                currentCoroutineContext().ensureActive()
+                val launcher = Launcher.Builder<LanguageServer>()
+                    .setLocalService(TinymistPreviewLanguageClient())
+                    .setRemoteInterface(LanguageServer::class.java)
+                    .setInput(process.inputStream)
+                    .setOutput(process.outputStream)
+                    .setExecutorService(AppExecutorUtil.getAppExecutorService())
+                    .create()
+                listening = launcher.startListening()
+                val remote = launcher.remoteProxy
+                val result = withTimeout(5.seconds) {
+                    remote.initialize(InitializeParams().apply {
+                        capabilities = ClientCapabilities().apply {
+                            general = GeneralClientCapabilities().apply {
+                                positionEncodings = listOf(PositionEncodingKind.UTF16)
+                            }
+                        }
+                        workspaceFolders = listOf(WorkspaceFolder(directory.toUri().toString(), "Code style preview"))
+                        initializationOptions = options.toJson().apply {
+                            addProperty("syntaxOnly", "enable")
+                            addProperty("customizedShowDocument", true)
+                        }
+                    }).await()
+                }
+                check(result.capabilities.positionEncoding.let { it == null || it == PositionEncodingKind.UTF16 }) {
+                    "Tinymist selected an unsupported preview position encoding"
+                }
+                remote.initialized(InitializedParams())
 
-            val launcher = Launcher.Builder<LanguageServer>()
-                .setLocalService(TinymistPreviewLanguageClient())
-                .setRemoteInterface(LanguageServer::class.java)
-                .setInput(started.inputStream)
-                .setOutput(started.outputStream)
-                .setExecutorService(AppExecutorUtil.getAppExecutorService())
-                .create()
-            listening.set(launcher.startListening())
-            val remote = launcher.remoteProxy
-            server = remote
-            val result = await(remote.initialize(InitializeParams().apply {
-                capabilities = ClientCapabilities().apply {
-                    general = GeneralClientCapabilities().apply {
-                        positionEncodings = listOf(PositionEncodingKind.UTF16)
+                // didOpen supplies the content; the isolated preview never creates a source file.
+                val uri = directory.resolve("typst-code-style-preview-${UUID.randomUUID()}.typ").toUri().toString()
+                remote.textDocumentService.didOpen(DidOpenTextDocumentParams(TextDocumentItem(uri, "typst", 1, text)))
+                val edits = withTimeout(5.seconds) {
+                    remote.textDocumentService.formatting(
+                        DocumentFormattingParams(TextDocumentIdentifier(uri), FormattingOptions(options.indentSize, true))
+                    ).await()
+                }
+                val formatted = if (edits.isNullOrEmpty()) null else {
+                    val document = DocumentImpl(text, false, true)
+                    check(applyTextEdits(document, edits)) { "Tinymist returned invalid preview formatting edits" }
+                    document.text.takeUnless { it == text }
+                }
+                try {
+                    withTimeoutOrNull(1.seconds) {
+                        remote.shutdown().await()
+                        remote.exit()
+                        process.awaitExit()
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // Cleanup below also handles a failed shutdown request.
+                }
+                formatted
+            } finally {
+                // Keep transport cleanup within the service job so unloading awaits its completion.
+                withContext(NonCancellable) {
+                    if (process.isAlive) process.destroyForcibly()
+                    runCatching { process.outputStream.close() }
+                    runCatching { process.inputStream.close() }
+                    runCatching { process.errorStream.close() }
+                    try {
+                        withTimeoutOrNull(1.seconds) { process.awaitExit() }
+                        listening?.get(1, TimeUnit.SECONDS)
+                    } catch (_: Exception) {
+                        listening?.cancel(true)
                     }
                 }
-                workspaceFolders = listOf(WorkspaceFolder(directory.toUri().toString(), "Code style preview"))
-                initializationOptions = options.toJson().apply {
-                    addProperty("syntaxOnly", "enable")
-                    addProperty("customizedShowDocument", true)
-                }
-            }))
-            initialized = true
-            check(result.capabilities.positionEncoding.let { it == null || it == PositionEncodingKind.UTF16 }) {
-                "Tinymist selected an unsupported preview position encoding"
-            }
-            checkCancelled()
-            remote.initialized(InitializedParams())
-
-            // didOpen supplies the content; the isolated preview never creates a source file.
-            val uri = directory.resolve("typst-code-style-preview-${UUID.randomUUID()}.typ").toUri().toString()
-            remote.textDocumentService.didOpen(DidOpenTextDocumentParams(TextDocumentItem(uri, "typst", 1, text)))
-            val edits = await(remote.textDocumentService.formatting(
-                DocumentFormattingParams(TextDocumentIdentifier(uri), FormattingOptions(options.indentSize, true))
-            ))
-            checkCancelled()
-            if (edits.isNullOrEmpty()) return null
-
-            val document = DocumentImpl(text, false, true)
-            check(applyTextEdits(document, edits)) { "Tinymist returned invalid preview formatting edits" }
-            return document.text.takeUnless { it == text }
-        } finally {
-            try {
-                stopProcess(server, initialized)
-            } finally {
-                timeout.cancel(false)
             }
         }
-    }
-
-    fun cancel() {
-        cancelled.set(true)
-        process.get()?.destroyForcibly()
-        request.get()?.cancel(true)
-        listening.get()?.cancel(true)
-    }
-
-    private fun <T> await(future: CompletableFuture<T>): T {
-        request.set(future)
-        try {
-            checkCancelled()
-            return future.get(5, TimeUnit.SECONDS)
-        } catch (_: InterruptedException) {
-            Thread.currentThread().interrupt()
-            throw CancellationException("Typst code style preview cancelled")
-        } catch (timeout: TimeoutException) {
-            future.cancel(true)
-            throw timeout
-        } finally {
-            request.compareAndSet(future, null)
-        }
-    }
-
-    private fun checkCancelled() {
-        if (cancelled.get() || Thread.currentThread().isInterrupted) {
-            throw CancellationException("Typst code style preview cancelled")
-        }
-    }
-
-    private fun stopProcess(server: LanguageServer?, initialized: Boolean) {
-        val started = process.get()
-        if (!cancelled.get() && initialized && server != null && started?.isAlive == true) {
-            try {
-                server.shutdown().get(1, TimeUnit.SECONDS)
-                server.exit()
-                started.waitFor(1, TimeUnit.SECONDS)
-            } catch (_: InterruptedException) {
-                Thread.currentThread().interrupt()
-            } catch (_: Exception) {
-                // A failed or unresponsive preview server is terminated below.
-            }
-        }
-        if (started?.isAlive == true) started.destroyForcibly()
-        listening.getAndSet(null)?.cancel(true)
-        started?.let {
-            runCatching { it.outputStream.close() }
-            runCatching { it.inputStream.close() }
-            runCatching { it.errorStream.close() }
-        }
-        process.set(null)
     }
 }
 

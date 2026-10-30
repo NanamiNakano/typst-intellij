@@ -1,6 +1,6 @@
 package dev.thynanami.idea.typst.lsp
 
-import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.Editor
@@ -17,6 +17,7 @@ import com.intellij.platform.lsp.api.Lsp4jClient
 import com.intellij.platform.lsp.api.LspServerNotificationsHandler
 import dev.thynanami.idea.typst.lsp.outline.TypstOutlineModel
 import dev.thynanami.idea.typst.lsp.status.TypstStatusModel
+import kotlinx.coroutines.Dispatchers
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 
 private val LOG = logger<TypstLspClient>()
@@ -26,14 +27,18 @@ class TypstLspClient(
     serverNotificationsHandler: LspServerNotificationsHandler,
     private val descriptor: TinymistLanguageServerDescriptor,
 ) : Lsp4jClient(serverNotificationsHandler) {
+    private val languageServer = project.service<TinymistLanguageServer>()
+    private val statusModel = project.service<TypstStatusModel>()
+    private val outlineModel = project.service<TypstOutlineModel>()
+
     @JsonNotification("tinymist/compileStatus")
     fun handleCompileStatus(status: TinymistCompileStatus) {
-        if (!project.isDisposed) project.service<TypstStatusModel>().update(descriptor, status)
+        if (!project.isDisposed) statusModel.update(descriptor, status)
     }
 
     @JsonNotification("tinymist/documentOutline")
     fun handleDocumentOutline(outline: DocumentOutline) {
-        if (!project.isDisposed) project.service<TypstOutlineModel>().update(outline)
+        if (!project.isDisposed) outlineModel.update(outline)
     }
 
     @JsonNotification("tinymist/preview/dispose")
@@ -52,14 +57,14 @@ class TypstLspClient(
             return
         }
 
-        ApplicationManager.getApplication().invokeLater {
-            if (project.isDisposed) return@invokeLater
+        languageServer.launch(Dispatchers.EDT) {
+            if (project.isDisposed || languageServer.running()?.descriptor !== descriptor) return@launch
 
             val editors = FileEditorManager.getInstance(project).openFile(file, true)
             val editor = editors.firstNotNullOfOrNull(::textEditorOf)
             if (editor == null) {
                 LOG.warn("No text editor to scroll among " + editors.map { it.javaClass.name })
-                return@invokeLater
+                return@launch
             }
 
             editor.caretModel.moveToLogicalPosition(LogicalPosition(position[0], position[1]))

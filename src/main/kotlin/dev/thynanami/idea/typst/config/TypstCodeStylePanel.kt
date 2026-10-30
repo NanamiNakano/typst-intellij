@@ -70,7 +70,7 @@ internal class TypstCodeStylePanel(
         controls.registerValidators(this)
         addPanelToWatch(controls)
         editor.document.addDocumentListener(TypstPreviewDocumentListener(::previewEdited), this)
-        UiNotifyConnector.doWhenFirstShown(editor.component) { onSomethingChanged() }
+        UiNotifyConnector.doWhenFirstShown(editor.component, { onSomethingChanged() }, this)
     }
 
     override fun getPanel() = content

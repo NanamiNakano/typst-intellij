@@ -2,6 +2,8 @@ package dev.thynanami.idea.typst.editor
 
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
+import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorState
@@ -10,10 +12,13 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.platform.lsp.api.LspClient
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
+import dev.thynanami.idea.typst.lsp.TinymistLanguageServer
 import dev.thynanami.idea.typst.lsp.TinymistPreviewServer
+import kotlinx.coroutines.Dispatchers
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
 import org.cef.handler.CefLifeSpanHandlerAdapter
@@ -38,11 +43,6 @@ private const val BROWSER_CARD = "browser"
 private const val FAILED_CARD = "failed"
 private const val STOPPED_CARD = "stopped"
 
-private fun onEdt(action: () -> Unit) {
-  val application = ApplicationManager.getApplication()
-  if (application.isDispatchThread) action() else application.invokeLater(action)
-}
-
 private fun parseUri(url: String?): URI? = try {
   url?.let(::URI)
 } catch (_: URISyntaxException) {
@@ -63,6 +63,8 @@ private fun externalUri(url: String): URI? {
 
 class TypstPreviewEditor(private val project: Project, private val file: VirtualFile) :
   UserDataHolderBase(), FileEditor {
+  private val languageServer = project.service<TinymistLanguageServer>()
+
   private class Attempt(val server: TinymistPreviewServer, val browser: JBCefBrowser) {
     val linkQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
 
@@ -94,6 +96,12 @@ class TypstPreviewEditor(private val project: Project, private val file: Virtual
     cards.add(messagePanel("Failed to load preview", restart = true), FAILED_CARD)
     cards.add(messagePanel("Preview stopped", restart = true), STOPPED_CARD)
     onEdt { startPreview() }
+  }
+
+  private fun onEdt(action: () -> Unit) {
+    languageServer.launch(Dispatchers.EDT) {
+      if (!disposed && !project.isDisposed) action()
+    }
   }
 
   private class NavigationHandler(private val current: Attempt) : CefRequestHandlerAdapter() {
@@ -199,6 +207,7 @@ class TypstPreviewEditor(private val project: Project, private val file: Virtual
       showCard(FAILED_CARD)
       return
     }
+    Disposer.register(this, browser)
     val current = Attempt(TinymistPreviewServer(project, file.path), browser)
     attempt = current
     TypstPreviewSelectionSync(project, browser, current.server::scrollToSource)
@@ -245,8 +254,10 @@ class TypstPreviewEditor(private val project: Project, private val file: Virtual
     )
   }
 
-  fun restartPreview() = onEdt {
-    if (disposed || project.isDisposed) return@onEdt
+  fun restorePreview(server: LspClient) = onEdt {
+    if (languageServer.running() !== server) return@onEdt
+    // The old server's stop notification can arrive after its replacement has initialized.
+    if (attempt?.server?.isActiveFor(server) == true) return@onEdt
     attempt?.let { current ->
       current.server.stop()
       release(current)
@@ -298,12 +309,11 @@ class TypstPreviewEditor(private val project: Project, private val file: Virtual
   override fun removePropertyChangeListener(listener: PropertyChangeListener) = Unit
 
   override fun dispose() {
+    ApplicationManager.getApplication().assertIsDispatchThread()
     disposed = true
-    onEdt {
-      attempt?.let { current ->
-        current.server.stop()
-        release(current)
-      }
+    attempt?.let { current ->
+      current.server.stop()
+      release(current)
     }
   }
 

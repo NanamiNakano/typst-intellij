@@ -30,6 +30,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.eclipse.lsp4j.ExecuteCommandParams
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -80,6 +82,20 @@ class TinymistLanguageServer(private val project: Project, private val scope: Co
         }
     }
 
+    fun serverInitialized(descriptor: TinymistLanguageServerDescriptor) {
+        refreshFocus()
+        scope.launch(Dispatchers.EDT) {
+            if (project.isDisposed) return@launch
+            val client = running()?.takeIf { it.descriptor === descriptor } ?: return@launch
+            // The platform's status bar restart also reaches this lifecycle callback.
+            FileEditorManager.getInstance(project).allEditors
+                .filterIsInstance<TypstSplitEditor>()
+                .mapNotNull { it.previewEditor as? TypstPreviewEditor }
+                .forEach { it.restorePreview(client) }
+            DaemonCodeAnalyzer.getInstance(project).restart("Tinymist language server initialized")
+        }
+    }
+
     private fun selectedTypstFile(): VirtualFile? = FileEditorManager.getInstance(project)
         .selectedEditor?.file?.takeIf { it.isValid && it.isInLocalFileSystem && it.isTypstFile() }
 
@@ -117,7 +133,8 @@ class TinymistLanguageServer(private val project: Project, private val scope: Co
 
     override fun dispose() = Unit
 
-    fun launch(task: suspend () -> Unit): Job = scope.launch { task() }
+    fun launch(context: CoroutineContext = EmptyCoroutineContext, task: suspend () -> Unit): Job =
+        scope.launch(context) { task() }
 
     fun restart(): Job = launch { restartAndRestorePreviews() }
 
@@ -137,14 +154,6 @@ class TinymistLanguageServer(private val project: Project, private val scope: Co
             if (awaitRunning(previousClients) == null) {
                 if (withContext(Dispatchers.EDT) { !hasOpenTypstFiles() }) return@withLock
                 error("Tinymist did not restart within ${startupTimeout.inWholeSeconds} seconds")
-            }
-            withContext(Dispatchers.EDT) {
-                if (project.isDisposed) return@withContext
-                FileEditorManager.getInstance(project).allEditors
-                    .filterIsInstance<TypstSplitEditor>()
-                    .mapNotNull { it.previewEditor as? TypstPreviewEditor }
-                    .forEach { it.restartPreview() }
-                DaemonCodeAnalyzer.getInstance(project).restart("Tinymist language server restarted")
             }
         }
     }

@@ -18,6 +18,8 @@ private const val STATIC_SERVER_ADDRESS = "staticServerAddr"
 private const val LOOPBACK_DATA_PLANE_HOST = "127.0.0.1:0"
 
 class TinymistPreviewServer(private val project: Project, private val filepath: String) {
+  private val languageServer = project.service<TinymistLanguageServer>()
+
   private enum class State {
     NEW, WAITING, STARTING, RUNNING, STOPPED, DISPOSED;
 
@@ -40,13 +42,14 @@ class TinymistPreviewServer(private val project: Project, private val filepath: 
 
   val isActive: Boolean get() = state.isActive
 
+  fun isActiveFor(server: LspClient): Boolean = isActive && owner === server
+
   fun start(onAddress: (String) -> Unit, onFailure: (Throwable) -> Unit, onDisposed: () -> Unit) {
     synchronized(this) {
       if (state != State.NEW) return
       state = State.WAITING
     }
 
-    val languageServer = project.service<TinymistLanguageServer>()
     languageServer.launch {
       try {
         val server = languageServer.awaitRunning()
@@ -114,7 +117,7 @@ class TinymistPreviewServer(private val project: Project, private val filepath: 
       line = line,
       character = character,
     )
-    val job = project.service<TinymistLanguageServer>().launch {
+    val job = languageServer.launch {
       if (state != State.RUNNING || project.isDisposed) return@launch
       try {
         server.execute(SCROLL_PREVIEW_COMMAND, taskId, request)
@@ -136,7 +139,7 @@ class TinymistPreviewServer(private val project: Project, private val filepath: 
     descriptor?.unregisterPreview(taskId)
     if (shouldKill && !project.isDisposed) {
       val server = owner ?: return
-      project.service<TinymistLanguageServer>().launch { kill(server) }
+      languageServer.launch { kill(server) }
     }
   }
 
