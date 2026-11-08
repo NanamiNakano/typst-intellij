@@ -2,7 +2,8 @@
 
 ## [0.1.5]
 
-Update to IntelliJ platform 2026.3
+- Update IntelliJ platform to 2026.3
+- Update bundled tinymist to 0.15.12
 
 ## [0.1.4]
 
