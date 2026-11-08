@@ -1,7 +1,6 @@
 package dev.thynanami.idea.typst.editor
 
 import com.intellij.ide.BrowserUtil
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
@@ -16,6 +15,7 @@ import com.intellij.platform.lsp.api.LspClient
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
+import com.intellij.util.concurrency.ThreadingAssertions
 import dev.thynanami.idea.typst.lsp.TinymistLanguageServer
 import dev.thynanami.idea.typst.lsp.TinymistPreviewServer
 import kotlinx.coroutines.Dispatchers
@@ -309,7 +309,7 @@ class TypstPreviewEditor(private val project: Project, private val file: Virtual
   override fun removePropertyChangeListener(listener: PropertyChangeListener) = Unit
 
   override fun dispose() {
-    ApplicationManager.getApplication().assertIsDispatchThread()
+    ThreadingAssertions.assertEventDispatchThread()
     disposed = true
     attempt?.let { current ->
       current.server.stop()

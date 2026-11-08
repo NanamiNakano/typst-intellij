@@ -46,42 +46,42 @@ private class TypstLspReferencesQuery(
         if (application.isDispatchThread || application.isReadAccessAllowed || application.isWriteAccessAllowed) return true
 
         val (client, params, modificationCount) =
-            ReadAction.computeCancellable<Triple<LspClient, ReferenceParams, Long>?, RuntimeException> {
-                if (project.isDisposed) return@computeCancellable null
-                val symbol = pointer.dereference() ?: return@computeCancellable null
+            ReadAction.nonBlocking<Triple<LspClient, ReferenceParams, Long>?> {
+                if (project.isDisposed) return@nonBlocking null
+                val symbol = pointer.dereference() ?: return@nonBlocking null
                 val client = symbol.client
-                if (project.service<TinymistLanguageServer>().running() !== client) return@computeCancellable null
-                val file = symbol.file.virtualFile ?: return@computeCancellable null
-                val document = FileDocumentManager.getInstance().getDocument(file) ?: return@computeCancellable null
-                if (symbol.range.endOffset > document.textLength) return@computeCancellable null
+                if (project.service<TinymistLanguageServer>().running() !== client) return@nonBlocking null
+                val file = symbol.file.virtualFile ?: return@nonBlocking null
+                val document = FileDocumentManager.getInstance().getDocument(file) ?: return@nonBlocking null
+                if (symbol.range.endOffset > document.textLength) return@nonBlocking null
                 val params = ReferenceParams(
                     client.getDocumentIdentifier(file),
                     getLsp4jPosition(document, symbol.range.startOffset),
                     ReferenceContext(false),
                 )
                 Triple(client, params, PsiModificationTracker.getInstance(project).modificationCount)
-            } ?: return true
+            }.executeSynchronously() ?: return true
 
         val locations = client.sendRequestSync(60_000) { it.textDocumentService.references(params) } ?: return true
         val seen = mutableSetOf<Pair<VirtualFile, TextRange>>()
         for (location in locations) {
             ProgressManager.checkCanceled()
-            val proceed = ReadAction.computeCancellable<Boolean, RuntimeException> {
+            val proceed = ReadAction.nonBlocking<Boolean> {
                 if (project.isDisposed || project.service<TinymistLanguageServer>().running() !== client ||
                     PsiModificationTracker.getInstance(project).modificationCount != modificationCount
-                ) return@computeCancellable false
-                val symbol = pointer.dereference() ?: return@computeCancellable false
-                val file = client.descriptor.findFileByUri(location.uri) ?: return@computeCancellable true
-                val psiFile = PsiManager.getInstance(project).findFile(file) ?: return@computeCancellable true
-                val document = FileDocumentManager.getInstance().getDocument(file) ?: return@computeCancellable true
-                val range = getRangeInDocument(document, location.range) ?: return@computeCancellable true
+                ) return@nonBlocking false
+                val symbol = pointer.dereference() ?: return@nonBlocking false
+                val file = client.descriptor.findFileByUri(location.uri) ?: return@nonBlocking true
+                val psiFile = PsiManager.getInstance(project).findFile(file) ?: return@nonBlocking true
+                val document = FileDocumentManager.getInstance().getDocument(file) ?: return@nonBlocking true
+                val range = getRangeInDocument(document, location.range) ?: return@nonBlocking true
                 // Tinymist includes declarations even when includeDeclaration is false.
-                if (symbol.file.virtualFile == file && symbol.range.contains(range)) return@computeCancellable true
+                if (symbol.file.virtualFile == file && symbol.range.contains(range)) return@nonBlocking true
                 val inScope = if (scope is LocalSearchScope) scope.containsRange(psiFile, range)
                 else PsiSearchScopeUtil.isInScope(scope, psiFile)
-                if (!inScope || !seen.add(file to range)) return@computeCancellable true
+                if (!inScope || !seen.add(file to range)) return@nonBlocking true
                 consumer.process(PsiUsage.textUsage(psiFile, range))
-            }
+            }.executeSynchronously()
             if (!proceed) return false
         }
         return true

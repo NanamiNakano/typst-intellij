@@ -1,11 +1,11 @@
 [versions]
 # plugins
-buildConfig = "6.1.1"
+buildConfig = "6.1.2"
 changelog = "2.5.0"
-intelliJPlatform = "2.19.0"
-kotlin = "2.4.20"
+intelliJPlatform = "2.20.0"
+kotlin = "2.4.21"
 node = "7.1.0"
-qodana = "2026.2.1"
+qodana = "2026.2.2"
 
 [plugins]
 buildConfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildConfig" }

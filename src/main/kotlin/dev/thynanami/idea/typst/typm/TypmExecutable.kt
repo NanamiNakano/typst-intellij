@@ -21,12 +21,13 @@ class TypmExecutable {
         }
     }
 
+    @Suppress("UnstableApiUsage") // findFirst replaces the deprecated findExecutableInPathOnAnyOS.
     fun resolve(value: String): String {
         if (value.isNotBlank()) {
             problem(value)?.let { throw TypmExecutableException(it) }
             return value
         }
-        return PathEnvironmentVariableUtil.findExecutableInPathOnAnyOS("typm")?.absolutePath
+        return PathEnvironmentVariableUtil.findFirst("typm")?.toString()
             ?: throw TypmExecutableException("typm was not found on PATH. Install typm or configure its executable in Typst settings.")
     }
 }

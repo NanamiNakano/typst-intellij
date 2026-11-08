@@ -138,7 +138,7 @@ internal class TypstCommentState(
 // The lightweight PSI contains no PsiComment nodes; use the same syntax information as the editor.
 private fun typstBlockCommentRanges(text: CharSequence, file: PsiFile): List<TextRange> {
     val lexer = SyntaxHighlighterFactory.getSyntaxHighlighter(file.language, file.project, file.virtualFile)
-        ?.highlightingLexer ?: return emptyList()
+        .highlightingLexer
     val starts = ArrayDeque<Int>()
     val ranges = mutableListOf<TextRange>()
     var offset = 0

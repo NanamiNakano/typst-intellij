@@ -8,6 +8,7 @@ import com.intellij.openapi.editor.LogicalPosition
 import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.FileEditorOpenRequest
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.fileEditor.TextEditorWithPreview
 import com.intellij.openapi.project.Project
@@ -46,6 +47,7 @@ class TypstLspClient(
         descriptor.previewDisposed(disposed.taskId)
     }
 
+    @Suppress("UnstableApiUsage") // The suspending open request replaces the deprecated blocking openFile.
     @JsonNotification("tinymist/preview/scrollSource")
     fun handleScrollSource(jump: SourceJump) {
         LOG.info("Preview asked to scroll to " + jump.filepath + " at " + jump.start)
@@ -60,13 +62,15 @@ class TypstLspClient(
         languageServer.launch(Dispatchers.EDT) {
             if (project.isDisposed || languageServer.running()?.descriptor !== descriptor) return@launch
 
-            val editors = FileEditorManager.getInstance(project).openFile(file, true)
+            val manager = FileEditorManager.getInstance(project)
+            val editors = manager.openFile(file, FileEditorOpenRequest.withFocus(true)).allEditors
             val editor = editors.firstNotNullOfOrNull(::textEditorOf)
             if (editor == null) {
                 LOG.warn("No text editor to scroll among " + editors.map { it.javaClass.name })
                 return@launch
             }
 
+            manager.awaitLoaded(editor)
             editor.caretModel.moveToLogicalPosition(LogicalPosition(position[0], position[1]))
             editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
             IdeFocusManager.getInstance(project).requestFocus(editor.contentComponent, true)

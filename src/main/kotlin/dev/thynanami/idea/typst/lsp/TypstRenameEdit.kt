@@ -14,8 +14,10 @@ import com.intellij.util.concurrency.annotations.RequiresReadLock
 import com.intellij.util.concurrency.annotations.RequiresWriteLock
 import org.eclipse.lsp4j.CodeAction
 import org.eclipse.lsp4j.RenameFile
+import org.eclipse.lsp4j.SnippetTextEdit
 import org.eclipse.lsp4j.TextEdit
 import org.eclipse.lsp4j.WorkspaceEdit
+import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.LinkOption
@@ -47,7 +49,8 @@ internal class TypstRenameEdit(
         edit.documentChanges.orEmpty().forEachIndexed { index, change ->
             if (change.isLeft) {
                 val documentEdit = change.left
-                require(textEdits.put(documentEdit.textDocument.uri, documentEdit.edits) == null) {
+                val edits = documentEdit.edits.map(::plainTextEdit)
+                require(textEdits.put(documentEdit.textDocument.uri, edits) == null) {
                     "Tinymist returned repeated edits for the same file."
                 }
             } else {
@@ -221,6 +224,9 @@ private class RenameFileMove(
     val ancestor: VirtualFile,
     val ancestorPath: Path,
 )
+
+private fun plainTextEdit(edit: Either<TextEdit, SnippetTextEdit>): TextEdit =
+    edit.left ?: error("Tinymist returned an unsupported snippet rename edit.")
 
 private fun localRenamePath(uri: String): Path {
     val parsed = URI(uri)

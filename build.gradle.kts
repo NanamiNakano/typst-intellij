@@ -189,6 +189,7 @@ dependencies {
     intellijPlatform {
         create(providers.gradleProperty("platformType"), providers.gradleProperty("platformVersion"))
         bundledPlugins(providers.gradleProperty("platformBundledPlugins").map { it.split(',') })
+        bundledModules(providers.gradleProperty("platformBundledModules").map { it.split(',') })
         plugins(providers.gradleProperty("platformPlugins").map { it.split(',') })
     }
 }
@@ -213,7 +214,7 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            create("IU", "2026.2")
+            create("IU", "2026.3")
             current()
         }
     }

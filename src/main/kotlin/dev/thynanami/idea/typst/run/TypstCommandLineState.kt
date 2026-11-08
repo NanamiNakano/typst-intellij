@@ -45,7 +45,8 @@ class TypstCommandLineState(
                 mode.command, "--format", "pdf", inputFile.path,
             )
         } else {
-            val executable = PathEnvironmentVariableUtil.findExecutableInPathOnAnyOS("typst")?.absolutePath
+            @Suppress("UnstableApiUsage") // findFirst replaces the deprecated findExecutableInPathOnAnyOS.
+            val executable = PathEnvironmentVariableUtil.findFirst("typst")?.toString()
                 ?: throw ExecutionException("Cannot find typst on PATH. Install typst to compile PDF files.")
             GeneralCommandLine(executable, mode.command, "--format", "pdf", inputFile.path)
         }

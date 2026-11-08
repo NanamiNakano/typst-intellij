@@ -35,7 +35,7 @@ internal fun typstTextRegions(element: PsiElement): List<TypstTextRegion> {
     if (element is PsiFile || element.firstChild != null) return emptyList()
     val file = element.containingFile
     val lexer = SyntaxHighlighterFactory.getSyntaxHighlighter(file.language, file.project, file.virtualFile)
-        ?.highlightingLexer ?: return emptyList()
+        .highlightingLexer
     val text = element.text
     val tokens = mutableListOf<TypstTextToken>()
     lexer.start(text)

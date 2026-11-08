@@ -24,7 +24,7 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.openapi.vfs.newvfs.BulkFileListener
+import com.intellij.openapi.vfs.newvfs.BulkFileListenerBackgroundable
 import com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
@@ -56,7 +56,7 @@ class TypmProjectService(private val project: Project, private val scope: Corout
         val manifest = layout.manifest ?: return
         ApplicationManager.getApplication().messageBus.connect(this)
             .subscribe(
-                VirtualFileManager.VFS_CHANGES,
+                VirtualFileManager.VFS_CHANGES_BG,
                 TypmManifestFileListener(this, FileUtil.toSystemIndependentName(manifest.toString())),
             )
         refreshPresence()
@@ -67,9 +67,7 @@ class TypmProjectService(private val project: Project, private val scope: Corout
             initialize()
             withContext(Dispatchers.EDT) {
                 projectAware?.let { aware ->
-                    val tracker = ExternalSystemProjectTracker.getInstance(project)
-                    tracker.markDirty(aware.projectId)
-                    tracker.scheduleChangeProcessing()
+                    ExternalSystemProjectTracker.getInstance(project).markDirty(aware.projectId)
                 }
             }
         }
@@ -152,12 +150,8 @@ class TypmProjectService(private val project: Project, private val scope: Corout
                 try {
                     withContext(NonCancellable + Dispatchers.EDT) {
                         if (started) aware.reloadFinished(status)
-                        if (!project.isDisposed && projectAware != null) {
-                            val tracker = ExternalSystemProjectTracker.getInstance(project)
-                            if (projectAware === aware && hasUnsavedManifestChanges()) {
-                                tracker.markDirty(aware.projectId)
-                            }
-                            tracker.scheduleChangeProcessing()
+                        if (!project.isDisposed && projectAware === aware && hasUnsavedManifestChanges()) {
+                            ExternalSystemProjectTracker.getInstance(project).markDirty(aware.projectId)
                         }
                     }
                 } finally {
@@ -216,7 +210,7 @@ class TypmProjectService(private val project: Project, private val scope: Corout
 private class TypmManifestFileListener(
     private val service: TypmProjectService,
     private val manifestPath: String,
-) : BulkFileListener {
+) : BulkFileListenerBackgroundable {
     override fun after(events: List<VFileEvent>) {
         if (events.any(::affectsManifestPresence)) service.manifestPresenceChanged()
     }

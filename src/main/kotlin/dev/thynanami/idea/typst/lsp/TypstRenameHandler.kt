@@ -1,7 +1,5 @@
 package dev.thynanami.idea.typst.lsp
 
-import com.ibm.icu.lang.UCharacter
-import com.ibm.icu.lang.UProperty
 import com.intellij.codeInsight.highlighting.HighlightManager
 import com.intellij.codeInsight.hint.HintManager
 import com.intellij.codeInsight.template.Template
@@ -442,15 +440,32 @@ private fun isRenameIdentifier(name: String): Boolean {
     var offset = 0
     while (offset < name.length) {
         val character = name.codePointAt(offset)
-        val property = if (offset == 0) UProperty.XID_START else UProperty.XID_CONTINUE
-        if (character != '_'.code && !(offset > 0 && character == '-'.code) && !UCharacter.hasBinaryProperty(character, property)) return false
+        val xid = if (offset == 0) isXidStart(character) else isXidContinue(character)
+        if (character != '_'.code && !(offset > 0 && character == '-'.code) && !xid) return false
         offset += Character.charCount(character)
     }
     return true
 }
 
+// Character reports the ID_Start/ID_Continue variants, which admit every XID code point plus the
+// identifier-ignorable formatting characters and the Pattern_Syntax and NFKC-unstable ones below.
+private val nonXidContinue = intArrayOf(
+    0x037A, 0x2E2F, 0x309B, 0x309C,
+    0xFC5E, 0xFC5F, 0xFC60, 0xFC61, 0xFC62, 0xFC63, 0xFDFA, 0xFDFB,
+    0xFE70, 0xFE72, 0xFE74, 0xFE76, 0xFE78, 0xFE7A, 0xFE7C, 0xFE7E,
+)
+
+private val nonXidStart = (nonXidContinue + intArrayOf(0x0E33, 0x0EB3, 0xFF9E, 0xFF9F)).sortedArray()
+
+private fun isXidStart(codePoint: Int): Boolean =
+    Character.isUnicodeIdentifierStart(codePoint) && nonXidStart.binarySearch(codePoint) < 0
+
+private fun isXidContinue(codePoint: Int): Boolean =
+    Character.isUnicodeIdentifierPart(codePoint) && !Character.isIdentifierIgnorable(codePoint) &&
+        nonXidContinue.binarySearch(codePoint) < 0
+
 // Typst permits these characters in labels, but @references trim trailing ':' and '.'.
 private fun isRenameLabel(name: String): Boolean =
     name.isNotEmpty() && name.first() !in ":." && name.last() !in ":." && name.codePoints().allMatch {
-        it == '_'.code || it == '-'.code || it == ':'.code || it == '.'.code || UCharacter.hasBinaryProperty(it, UProperty.XID_CONTINUE)
+        it == '_'.code || it == '-'.code || it == ':'.code || it == '.'.code || isXidContinue(it)
     }
