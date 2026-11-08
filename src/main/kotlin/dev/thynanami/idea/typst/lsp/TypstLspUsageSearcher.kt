@@ -25,7 +25,10 @@ import com.intellij.util.Processor
 import com.intellij.util.Query
 import org.eclipse.lsp4j.ReferenceContext
 import org.eclipse.lsp4j.ReferenceParams
+import kotlin.jvm.JvmDefaultWithoutCompatibility
 
+// Inherit platform defaults without generating bridges into its restricted API.
+@JvmDefaultWithoutCompatibility
 class TypstLspUsageSearcher : UsageSearcher {
     override fun collectSearchRequest(parameters: UsageSearchParameters): Query<Usage>? {
         val symbol = parameters.target as? TypstLspSymbol ?: return null

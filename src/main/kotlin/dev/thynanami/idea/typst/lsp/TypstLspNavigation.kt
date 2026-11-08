@@ -30,6 +30,7 @@ import com.intellij.psi.util.PsiModificationTracker
 import dev.thynanami.idea.typst.isTypstFile
 import org.eclipse.lsp4j.DefinitionParams
 import org.eclipse.lsp4j.LocationLink
+import kotlin.jvm.JvmDefaultWithoutCompatibility
 
 class TypstLspSymbolProvider : ImplicitReferenceProvider, PsiSymbolDeclarationProvider {
     override fun getImplicitReference(element: PsiElement, offsetInElement: Int): PsiSymbolReference? {
@@ -154,6 +155,8 @@ private class TypstLspDeclaration(
     override fun getSymbol(): TypstLspSymbol = target
 }
 
+// Inherit platform defaults without generating bridges into its restricted API.
+@JvmDefaultWithoutCompatibility
 internal data class TypstLspSymbol(
     val client: LspClient,
     val file: PsiFile,

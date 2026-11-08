@@ -31,7 +31,10 @@ import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreePath
 import javax.swing.tree.TreeSelectionModel
+import kotlin.jvm.JvmDefaultWithoutCompatibility
 
+// Inherit platform defaults without generating bridges into its restricted API.
+@JvmDefaultWithoutCompatibility
 class TypstOutlineToolWindowFactory : ToolWindowFactory, DumbAware {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val view = TypstOutlinePanel(project)
