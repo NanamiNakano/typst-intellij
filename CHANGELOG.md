@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [0.1.5]
+
+Update to IntelliJ platform 2026.3
+
 ## [0.1.4]
 
 Bug fixes
